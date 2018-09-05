@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using AlbionData.Models;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,6 +26,7 @@ namespace albiondata_api_dotNet
 
     public void ConfigureServices(IServiceCollection services)
     {
+      services.AddDbContext<MainContext>(opt => opt.UseMySql(Program.SqlConnectionUrl));
       services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
     }
 
@@ -36,9 +39,9 @@ namespace albiondata_api_dotNet
       else
       {
         app.UseHsts();
+        app.UseHttpsRedirection();
       }
 
-      app.UseHttpsRedirection();
       app.UseMvc();
     }
   }
