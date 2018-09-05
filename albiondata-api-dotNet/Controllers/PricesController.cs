@@ -20,9 +20,20 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("{itemId}")]
-    public ActionResult<IEnumerable<MarketOrderDB>> Get([FromRoute]string itemId)
+    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemId)
     {
-      return context.MarketOrders.Where(x => x.ItemTypeId == itemId).Take(10).ToArray();
+      //return context.MarketOrders.Where(x => x.ItemTypeId == itemId).Take(10).ToArray();
+      var groups = context.MarketOrders
+        .Where(x => x.ItemTypeId == itemId)
+        .Take(10).ToArray()
+        .GroupBy(x => new { x.ItemTypeId, x.LocationId });
+      return groups.Select(x => new MarketResponse
+      {
+        ItemTypeId = x.Key.ItemTypeId,
+        City = x.Key.LocationId.ToString(),
+        SellPriceMin = x.Min(y => y.UnitPriceSilver),
+        SellPriceMax = x.Max(y => y.UnitPriceSilver)
+      }).ToArray();
     }
   }
 }
