@@ -3,7 +3,7 @@
     "windowsAuthentication": false,
     "anonymousAuthentication": true,
     "iis": {
-      "applicationUrl": "http://localhost/albiondata-api-dotNet",
+      "applicationUrl": "http://localhost:53868",
       "sslPort": 0
     },
     "iisExpress": {
