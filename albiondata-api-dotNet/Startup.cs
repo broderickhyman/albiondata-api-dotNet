@@ -36,11 +36,6 @@ namespace albiondata_api_dotNet
       {
         app.UseDeveloperExceptionPage();
       }
-      else
-      {
-        app.UseHsts();
-        app.UseHttpsRedirection();
-      }
 
       app.UseMvc();
     }

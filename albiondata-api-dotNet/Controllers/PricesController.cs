@@ -5,13 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace albiondata_api_dotNet.Controllers
 {
+  [ApiController]
   [Produces("application/json")]
   [Route("api/v1/stats/[controller]")]
-  [ApiController]
   public class PricesController : ControllerBase
   {
     private readonly MainContext context;
@@ -26,13 +25,18 @@ namespace albiondata_api_dotNet.Controllers
     [HttpGet("{itemId}")]
     public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemId)
     {
+      return Ok(GetMarketByItemId(context, itemId));
+    }
+
+    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, string itemId)
+    {
       var items = context.MarketOrders
-        .Where(x => EF.Functions.Like(x.ItemTypeId, itemId.Replace('*', '%')) && x.UpdatedAt > DateTime.UtcNow.AddDays(-2) && !x.DeletedAt.HasValue)
+        .Where(x => EF.Functions.Like(x.ItemTypeId, itemId.Replace('*', '%')) && x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue)
         .ToArray();
       Debug.WriteLine(items.Length);
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.LocationId });
       var responses = new List<MarketResponse>();
-      foreach (var group in groups)
+      foreach (var group in groups.OrderBy(x => x.Key.LocationId))
       {
         var dict = new Dictionary<string, UpdatedAggregate>();
         foreach (var auctionType in AuctionTypes)
@@ -76,7 +80,7 @@ namespace albiondata_api_dotNet.Controllers
         responses.Add(new MarketResponse
         {
           ItemTypeId = group.Key.ItemTypeId,
-          City = group.Key.LocationId.ToString(),
+          City = Locations.GetName(group.Key.LocationId),
           SellPriceMin = dict["offer:0"].Value,
           SellPriceMinDate = dict["offer:0"].UpdatedAt,
           SellPriceMax = dict["offer:1"].Value,
@@ -87,7 +91,6 @@ namespace albiondata_api_dotNet.Controllers
           BuyPriceMaxDate = dict["request:1"].UpdatedAt
         });
       }
-      responses.Sort((a, b) => string.Compare(a.City, b.City));
       return responses;
     }
 

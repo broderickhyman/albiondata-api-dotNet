@@ -1,0 +1,56 @@
+﻿@model IEnumerable<AlbionData.Models.MarketResponse>
+@functions{
+  public string CheckZeroValue(ulong value)
+  {
+    if (value == 0) return "";
+    return value.ToString();
+  }
+
+  public string CheckMinDate(DateTime value)
+  {
+    if (value == DateTime.MinValue) return "";
+    return value.ToString("G");
+  }
+}
+
+<head>
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+  </style>
+</head>
+<body>
+  <table style='width:100%'>
+    <tr>
+      <th>item_id</th>
+      <th>city</th>
+      <th>sell_price_min</th>
+      <th>sell_price_min_date</th>
+      <th>sell_price_max</th>
+      <th>sell_price_max_date</th>
+      <th>buy_price_min</th>
+      <th>buy_price_min_date</th>
+      <th>buy_price_max</th>
+      <th>buy_price_max_date</th>
+    </tr>
+    @{
+      foreach (var marketResponse in Model)
+      {
+        <tr>
+          <td>@marketResponse.ItemTypeId</td>
+          <td>@marketResponse.City</td>
+          <td>@CheckZeroValue(marketResponse.SellPriceMin)</td>
+          <td>@CheckMinDate(marketResponse.SellPriceMinDate)</td>
+          <td>@CheckZeroValue(marketResponse.SellPriceMax)</td>
+          <td>@CheckMinDate(marketResponse.SellPriceMaxDate)</td>
+          <td>@CheckZeroValue(marketResponse.BuyPriceMin)</td>
+          <td>@CheckMinDate(marketResponse.BuyPriceMinDate)</td>
+          <td>@CheckZeroValue(marketResponse.BuyPriceMax)</td>
+          <td>@CheckMinDate(marketResponse.BuyPriceMaxDate)</td>
+        </tr>
+      }
+    }
+  </table>
+</body>
