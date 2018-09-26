@@ -17,10 +17,11 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("{itemId}")]
-    public IActionResult Index(string itemId)
+    [HttpGet("{itemList}")]
+    public IActionResult Index(string itemList)
     {
-      return View(PricesController.GetMarketByItemId(context, itemId));
+      var itemIds = itemList.Split(",");
+      return View(PricesController.GetMarketByItemId(context, itemIds));
     }
   }
 }

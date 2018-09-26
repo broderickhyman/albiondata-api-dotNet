@@ -22,17 +22,54 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("{itemId}")]
-    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemId)
+    [HttpGet("{itemList}")]
+    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList)
     {
-      return Ok(GetMarketByItemId(context, itemId));
+      var itemIds = itemList.Split(",");
+      return Ok(GetMarketByItemId(context, itemIds));
     }
 
-    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, string itemId)
+    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, IEnumerable<string> itemIds)
     {
-      var items = context.MarketOrders
-        .Where(x => EF.Functions.Like(x.ItemTypeId, itemId.Replace('*', '%')) && x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue)
-        .ToArray();
+      var queryItems = context.MarketOrders
+        .Where(x => x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
+      var predicate = PredicateBuilder.False<MarketOrderDB>();
+      var whereCount = 0;
+      foreach (var itemId in itemIds)
+      {
+        var starCount = 0;
+        for (int i = 0; i < itemId.Length; i++)
+        {
+          if (itemId[i] == '*')
+          {
+            if (i > 3)
+            {
+              starCount++;
+            }
+            else
+            {
+              return new[] { new MarketResponse() };
+            }
+          }
+        }
+        if (starCount == 0)
+        {
+          predicate = predicate.Or(x => x.ItemTypeId == itemId);
+          whereCount++;
+        }
+        else if (starCount == 1)
+        {
+          predicate = predicate.Or(x => EF.Functions.Like(x.ItemTypeId, itemId.Replace('*', '%')));
+          whereCount++;
+        }
+        else
+        {
+          return new[] { new MarketResponse() };
+        }
+      }
+      if (whereCount == 0) return new[] { new MarketResponse() };
+
+      var items = queryItems.Where(predicate).ToArray();
       Debug.WriteLine(items.Length);
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.LocationId });
       var responses = new List<MarketResponse>();
