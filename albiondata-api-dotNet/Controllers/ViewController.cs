@@ -18,10 +18,9 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("{itemList}")]
-    public IActionResult Index(string itemList)
+    public IActionResult Index([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
-      var itemIds = itemList.Split(",");
-      return View(PricesController.GetMarketByItemId(context, itemIds));
+      return View(PricesController.GetMarketByItemId(context, itemList, locationList));
     }
   }
 }

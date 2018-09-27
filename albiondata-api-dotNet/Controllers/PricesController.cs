@@ -23,17 +23,22 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("{itemList}")]
-    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList)
+    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
-      var itemIds = itemList.Split(",");
-      return Ok(GetMarketByItemId(context, itemIds));
+      return Ok(GetMarketByItemId(context, itemList, locationList));
     }
 
-    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, IEnumerable<string> itemIds)
+    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, string itemList, string locationList)
     {
+      if (itemList == null) itemList = "";
+      if (locationList == null) locationList = "";
+
+      var itemIds = itemList.Split(",", StringSplitOptions.RemoveEmptyEntries);
+      var locations = locationList.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(x => x.Replace(" Market", "", StringComparison.OrdinalIgnoreCase).Replace(" ", ""));
+
       var queryItems = context.MarketOrders
         .Where(x => x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
-      var predicate = PredicateBuilder.False<MarketOrderDB>();
+      var itemTypePredicate = PredicateBuilder.False<MarketOrderDB>();
       var whereCount = 0;
       foreach (var itemId in itemIds)
       {
@@ -54,12 +59,12 @@ namespace albiondata_api_dotNet.Controllers
         }
         if (starCount == 0)
         {
-          predicate = predicate.Or(x => x.ItemTypeId == itemId);
+          itemTypePredicate = itemTypePredicate.Or(x => x.ItemTypeId == itemId);
           whereCount++;
         }
         else if (starCount == 1)
         {
-          predicate = predicate.Or(x => EF.Functions.Like(x.ItemTypeId, itemId.Replace('*', '%')));
+          itemTypePredicate = itemTypePredicate.Or(x => EF.Functions.Like(x.ItemTypeId, itemId.Replace('*', '%')));
           whereCount++;
         }
         else
@@ -68,8 +73,25 @@ namespace albiondata_api_dotNet.Controllers
         }
       }
       if (whereCount == 0) return new[] { new MarketResponse() };
+      var locationPredicate = PredicateBuilder.False<MarketOrderDB>();
 
-      var items = queryItems.Where(predicate).ToArray();
+      var locationWhereCount = 0;
+      foreach (var location in locations)
+      {
+        try
+        {
+          var locationId = (ushort)Enum.Parse<Location>(location, true);
+          locationPredicate = locationPredicate.Or(x => x.LocationId == locationId);
+          locationWhereCount++;
+        }
+        catch (ArgumentException) { }
+      }
+      queryItems = queryItems.Where(itemTypePredicate);
+      if (locationWhereCount > 0)
+      {
+        queryItems = queryItems.Where(locationPredicate);
+      }
+      var items = queryItems.ToArray();
       Debug.WriteLine(items.Length);
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.LocationId });
       var responses = new List<MarketResponse>();
