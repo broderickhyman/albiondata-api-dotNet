@@ -34,7 +34,14 @@ namespace albiondata_api_dotNet.Controllers
       if (locationList == null) locationList = "";
 
       var itemIds = itemList.Split(",", StringSplitOptions.RemoveEmptyEntries);
-      var locations = locationList.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(x => x.Replace(" Market", "", StringComparison.OrdinalIgnoreCase).Replace(" ", ""));
+      var locations = locationList.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(location =>
+      {
+        if (!string.Equals(location, "Black Market", StringComparison.OrdinalIgnoreCase))
+        {
+          location = location.Replace(" Market", "", StringComparison.OrdinalIgnoreCase);
+        }
+        return location.Replace(" ", "");
+      });
 
       var queryItems = context.MarketOrders
         .Where(x => x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
