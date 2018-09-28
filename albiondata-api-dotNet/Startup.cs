@@ -53,7 +53,7 @@ namespace albiondata_api_dotNet
       app.UseSwaggerUI(c =>
       {
         c.SwaggerEndpoint("/api/v1/swagger.json", "Albion Online Data API v1");
-        c.RoutePrefix = "api/v1/swagger";
+        c.RoutePrefix = "api/swagger";
       });
 
       app.UseMvc();
