@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Swashbuckle.AspNetCore.Swagger;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,6 +30,8 @@ namespace albiondata_api_dotNet
     {
       services.AddDbContext<MainContext>(opt => opt.UseMySql(Program.SqlConnectionUrl));
       services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
+      services.AddSwaggerGen(c => c.SwaggerDoc("v1", new Info { Title = "Albion Online Data API", Version = "v1" }));
     }
 
     public void Configure(IApplicationBuilder app, IHostingEnvironment env)
@@ -44,6 +47,14 @@ namespace albiondata_api_dotNet
           ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
       }
+
+      app.UseSwagger(x => x.RouteTemplate = "api/{documentName}/swagger.json");
+
+      app.UseSwaggerUI(c =>
+      {
+        c.SwaggerEndpoint("/api/v1/swagger.json", "Albion Online Data API v1");
+        c.RoutePrefix = "api/v1/swagger";
+      });
 
       app.UseMvc();
     }
