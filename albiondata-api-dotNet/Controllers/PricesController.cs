@@ -50,7 +50,7 @@ namespace albiondata_api_dotNet.Controllers
       foreach (var itemId in itemIds)
       {
         var starCount = 0;
-        for (int i = 0; i < itemId.Length; i++)
+        for (var i = 0; i < itemId.Length; i++)
         {
           if (itemId[i] == '*')
           {

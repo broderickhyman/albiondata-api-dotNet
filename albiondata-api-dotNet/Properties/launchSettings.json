@@ -23,7 +23,7 @@
     },
     "albiondata_api_dotNet": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "launchUrl": "api/v1/stats/prices/T1_CARROT",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
