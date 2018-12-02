@@ -30,6 +30,7 @@ namespace albiondata_api_dotNet
     {
       services.AddDbContext<MainContext>(opt => opt.UseMySql(Program.SqlConnectionUrl));
       services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+      services.AddCors();
 
       services.AddSwaggerGen(c => c.SwaggerDoc("v1", new Info { Title = "Albion Online Data API", Version = "v1" }));
     }
@@ -47,6 +48,8 @@ namespace albiondata_api_dotNet
           ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
       }
+
+      app.UseCors(builder => builder.AllowAnyOrigin());
 
       app.UseSwagger(x => x.RouteTemplate = "api/{documentName}/swagger.json");
 
