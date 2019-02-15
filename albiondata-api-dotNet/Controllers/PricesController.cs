@@ -10,7 +10,6 @@ namespace albiondata_api_dotNet.Controllers
 {
   [ApiController]
   [Produces("application/json")]
-  [Route("api/v1/stats/[controller]")]
   public class PricesController : ControllerBase
   {
     private readonly MainContext context;
@@ -22,16 +21,24 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("{itemList}")]
+    [HttpGet("api/v1/stats/[controller]/{itemList}")]
     public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
-      return Ok(GetMarketByItemId(context, itemList, locationList));
+      return Ok(GetMarketByItemId(context, itemList, locationList, null, ApiVersion.One));
     }
 
-    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, string itemList, string locationList)
+    [HttpGet("api/v2/stats/[controller]/{itemList}")]
+    [ApiExplorerSettings(GroupName = "v2")]
+    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
+    {
+      return Ok(GetMarketByItemId(context, itemList, locationList, qualityList, ApiVersion.Two));
+    }
+
+    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, string itemList, string locationList, string qualityList, ApiVersion apiVersion)
     {
       if (itemList == null) itemList = "";
       if (locationList == null) locationList = "";
+      if (qualityList == null || apiVersion == ApiVersion.One) qualityList = "";
 
       var itemIds = itemList.Split(",", StringSplitOptions.RemoveEmptyEntries);
       var locations = locationList.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(location =>
@@ -42,6 +49,14 @@ namespace albiondata_api_dotNet.Controllers
         }
         return location.Replace(" ", "");
       });
+      var qualities = qualityList.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(quality =>
+      {
+        if (byte.TryParse(quality, out var result))
+        {
+          return result;
+        }
+        return 0;
+      }).Where(x => x > 0 && x < 6);
 
       var queryItems = context.MarketOrders
         .Where(x => x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
@@ -81,6 +96,7 @@ namespace albiondata_api_dotNet.Controllers
       }
       if (whereCount == 0) return new[] { new MarketResponse() };
       var locationPredicate = PredicateBuilder.False<MarketOrderDB>();
+      var qualityPredicate = PredicateBuilder.False<MarketOrderDB>();
 
       var locationWhereCount = 0;
       foreach (var location in locations)
@@ -93,16 +109,36 @@ namespace albiondata_api_dotNet.Controllers
         }
         catch (ArgumentException) { }
       }
+      var qualityWhereCount = 0;
+      foreach (var quality in qualities)
+      {
+        qualityPredicate = qualityPredicate.Or(x => x.QualityLevel == quality);
+        qualityWhereCount++;
+      }
+
       queryItems = queryItems.Where(itemTypePredicate);
       if (locationWhereCount > 0)
       {
         queryItems = queryItems.Where(locationPredicate);
       }
+      if (qualityWhereCount > 0)
+      {
+        queryItems = queryItems.Where(qualityPredicate);
+      }
       var items = queryItems.ToArray();
       Debug.WriteLine(items.Length);
-      var groups = items.GroupBy(x => new { x.ItemTypeId, x.LocationId });
+
+      if (apiVersion == ApiVersion.One)
+      {
+        foreach (var item in items)
+        {
+          item.QualityLevel = 0;
+        }
+      }
+
+      var groups = items.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.LocationId });
       var responses = new List<MarketResponse>();
-      foreach (var group in groups.OrderBy(x => x.Key.LocationId))
+      foreach (var group in groups)
       {
         var dict = new Dictionary<string, UpdatedAggregate>();
         foreach (var auctionType in AuctionTypes)
@@ -147,6 +183,7 @@ namespace albiondata_api_dotNet.Controllers
         {
           ItemTypeId = group.Key.ItemTypeId,
           City = Locations.GetName(group.Key.LocationId),
+          QualityLevel = group.Key.QualityLevel,
           SellPriceMin = dict["offer:0"].Value,
           SellPriceMinDate = dict["offer:0"].UpdatedAt,
           SellPriceMax = dict["offer:1"].Value,
@@ -157,7 +194,8 @@ namespace albiondata_api_dotNet.Controllers
           BuyPriceMaxDate = dict["request:1"].UpdatedAt
         });
       }
-      return responses;
+
+      return responses.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
     }
 
     private class UpdatedAggregate

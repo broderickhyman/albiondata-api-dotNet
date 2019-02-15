@@ -26,6 +26,7 @@
     <tr>
       <th>item_id</th>
       <th>city</th>
+      <th>quality</th>
       <th>sell_price_min</th>
       <th>sell_price_min_date</th>
       <th>sell_price_max</th>
@@ -41,6 +42,7 @@
         <tr>
           <td>@marketResponse.ItemTypeId</td>
           <td>@marketResponse.City</td>
+          <td>@CheckZeroValue(marketResponse.QualityLevel)</td>
           <td>@CheckZeroValue(marketResponse.SellPriceMin)</td>
           <td>@CheckMinDate(marketResponse.SellPriceMinDate)</td>
           <td>@CheckZeroValue(marketResponse.SellPriceMax)</td>

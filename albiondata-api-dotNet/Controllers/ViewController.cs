@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace albiondata_api_dotNet.Controllers
 {
-  [Route("api/v1/stats/[controller]")]
   public class ViewController : Controller
   {
     private readonly MainContext context;
@@ -17,10 +16,17 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("{itemList}")]
+    [HttpGet("api/v1/stats/[controller]/{itemList}")]
     public ViewResult Index([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
-      return View(PricesController.GetMarketByItemId(context, itemList, locationList));
+      return View(PricesController.GetMarketByItemId(context, itemList, locationList, null, ApiVersion.One));
+    }
+
+    [HttpGet("api/v2/stats/[controller]/{itemList}")]
+    [ApiExplorerSettings(GroupName = "v2")]
+    public ViewResult Index([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
+    {
+      return View(PricesController.GetMarketByItemId(context, itemList, locationList, qualityList, ApiVersion.Two));
     }
   }
 }

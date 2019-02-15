@@ -17,6 +17,12 @@ using System.Threading.Tasks;
 
 namespace albiondata_api_dotNet
 {
+  public enum ApiVersion
+  {
+    One,
+    Two
+  }
+
   public class Startup
   {
     public Startup(IConfiguration configuration)
@@ -33,6 +39,7 @@ namespace albiondata_api_dotNet
       services.AddCors();
 
       services.AddSwaggerGen(c => c.SwaggerDoc("v1", new Info { Title = "Albion Online Data API", Version = "v1" }));
+      services.AddSwaggerGen(c => c.SwaggerDoc("v2", new Info { Title = "Albion Online Data API", Version = "v2" }));
     }
 
     public void Configure(IApplicationBuilder app, IHostingEnvironment env)
@@ -56,6 +63,7 @@ namespace albiondata_api_dotNet
       app.UseSwaggerUI(c =>
       {
         c.SwaggerEndpoint("/api/v1/swagger.json", "Albion Online Data API v1");
+        c.SwaggerEndpoint("/api/v2/swagger.json", "Albion Online Data API v2");
         c.RoutePrefix = "api/swagger";
       });
 
