@@ -28,7 +28,7 @@ namespace albiondata_api_dotNet.Controllers
 
     private IEnumerable<MarketStatChartResponse> GetByItemId(string itemId)
     {
-      var items = context.MarketStats
+      var items = context.MarketStats.AsNoTracking()
         .Where(x => x.ItemId == itemId)
         .ToArray();
       return items.GroupBy(x => x.LocationId).OrderBy(x => x.Key).Select(group => new MarketStatChartResponse

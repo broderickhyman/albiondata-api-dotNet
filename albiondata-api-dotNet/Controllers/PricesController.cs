@@ -58,7 +58,7 @@ namespace albiondata_api_dotNet.Controllers
         return 0;
       }).Where(x => x > 0 && x < 6);
 
-      var queryItems = context.MarketOrders
+      var queryItems = context.MarketOrders.AsNoTracking()
         .Where(x => x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
       var itemTypePredicate = PredicateBuilder.False<MarketOrderDB>();
       var whereCount = 0;
