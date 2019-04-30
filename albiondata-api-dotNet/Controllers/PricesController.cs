@@ -64,35 +64,8 @@ namespace albiondata_api_dotNet.Controllers
       var whereCount = 0;
       foreach (var itemId in itemIds)
       {
-        var starCount = 0;
-        for (var i = 0; i < itemId.Length; i++)
-        {
-          if (itemId[i] == '*')
-          {
-            if (i > 3)
-            {
-              starCount++;
-            }
-            else
-            {
-              return new[] { new MarketResponse() };
-            }
-          }
-        }
-        if (starCount == 0)
-        {
-          itemTypePredicate = itemTypePredicate.Or(x => x.ItemTypeId == itemId);
-          whereCount++;
-        }
-        else if (starCount == 1)
-        {
-          itemTypePredicate = itemTypePredicate.Or(x => EF.Functions.Like(x.ItemTypeId, itemId.Replace('*', '%')));
-          whereCount++;
-        }
-        else
-        {
-          return new[] { new MarketResponse() };
-        }
+        itemTypePredicate = itemTypePredicate.Or(x => x.ItemTypeId == itemId);
+        whereCount++;
       }
       if (whereCount == 0) return new[] { new MarketResponse() };
       var locationPredicate = PredicateBuilder.False<MarketOrderDB>();
