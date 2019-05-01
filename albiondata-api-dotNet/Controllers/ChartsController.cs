@@ -21,22 +21,32 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("{itemId}")]
-    public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] uint count, [FromQuery] DateTime? date)
+    public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
     {
-      return Ok(GetByItemId(itemId, locationList, count, date));
+      return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, date)));
     }
 
-    private IEnumerable<MarketStatChartResponse> GetByItemId(string itemId, string locationList, uint count = 720, DateTime? date = null)
+    private IEnumerable<MarketStatChartResponse> ConvertToResponse(IEnumerable<MarketStat> items)
+    {
+      return items.GroupBy(x => x.LocationId).OrderBy(x => x.Key).Select(group => new MarketStatChartResponse
+      {
+        Location = Locations.GetName(group.Key),
+        Data = new MarketStatResponse
+        {
+          TimeStamps = group.Select(x => (ulong)new DateTimeOffset(x.TimeStamp).ToUnixTimeMilliseconds()).ToList(),
+          PricesAvg = group.Select(x => x.PriceAverage).ToList(),
+          PricesMax = group.Select(x => x.PriceMax).ToList(),
+          PricesMin = group.Select(x => x.PriceMin).ToList()
+        }
+      });
+    }
+
+    public static IEnumerable<MarketStat> GetByItemId(MainContext context, string itemId, string locationList, DateTime? date = null, uint count = 0)
     {
       if (string.IsNullOrWhiteSpace(locationList)) { locationList = ""; }
-      if (count == 0) { count = 720; }
       if (date == null)
       {
-        date = DateTime.UtcNow.AddHours(-1 * count);
-      }
-      else if (count == 720)
-      {
-        count = (uint)(DateTime.UtcNow - date).Value.TotalHours;
+        date = DateTime.UtcNow.AddDays(-30);
       }
       var locationIDs = Utilities.ParseLocationList(locationList);
 
@@ -53,20 +63,12 @@ namespace albiondata_api_dotNet.Controllers
         itemQuery = itemQuery.Where(locationPredicate);
       }
 
-      var items = itemQuery.OrderByDescending(x => x.TimeStamp)
-        .Take((int)count)
-        .ToArray();
-      return items.GroupBy(x => x.LocationId).OrderBy(x => x.Key).Select(group => new MarketStatChartResponse
+      itemQuery = itemQuery.OrderByDescending(x => x.TimeStamp);
+      if (count > 0 && locationIDs.Count() == 1)
       {
-        Location = Locations.GetName(group.Key),
-        Data = new MarketStatResponse
-        {
-          TimeStamps = group.Select(x => (ulong)new DateTimeOffset(x.TimeStamp).ToUnixTimeMilliseconds()).ToList(),
-          PricesAvg = group.Select(x => x.PriceAverage).ToList(),
-          PricesMax = group.Select(x => x.PriceMax).ToList(),
-          PricesMin = group.Select(x => x.PriceMin).ToList()
-        }
-      });
+        itemQuery = itemQuery.Take((int)count);
+      }
+      return itemQuery.ToArray();
     }
   }
 }
