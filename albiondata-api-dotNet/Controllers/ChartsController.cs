@@ -21,15 +21,40 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("{itemId}")]
-    public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute]string itemId)
+    public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] uint count, [FromQuery] DateTime? date)
     {
-      return Ok(GetByItemId(itemId));
+      return Ok(GetByItemId(itemId, locationList, count, date));
     }
 
-    private IEnumerable<MarketStatChartResponse> GetByItemId(string itemId)
+    private IEnumerable<MarketStatChartResponse> GetByItemId(string itemId, string locationList, uint count = 720, DateTime? date = null)
     {
-      var items = context.MarketStats.AsNoTracking()
-        .Where(x => x.ItemId == itemId)
+      if (string.IsNullOrWhiteSpace(locationList)) { locationList = ""; }
+      if (count == 0) { count = 720; }
+      if (date == null)
+      {
+        date = DateTime.UtcNow.AddHours(-1 * count);
+      }
+      else if (count == 720)
+      {
+        count = (uint)(DateTime.UtcNow - date).Value.TotalHours;
+      }
+      var locationIDs = Utilities.ParseLocationList(locationList);
+
+      var itemQuery = context.MarketStats.AsNoTracking()
+        .Where(x => x.ItemId == itemId && x.TimeStamp > date);
+
+      var locationPredicate = PredicateBuilder.False<MarketStat>();
+      foreach (var locationID in locationIDs)
+      {
+        locationPredicate = locationPredicate.Or(x => x.LocationId == locationID);
+      }
+      if (locationIDs.Any())
+      {
+        itemQuery = itemQuery.Where(locationPredicate);
+      }
+
+      var items = itemQuery.OrderByDescending(x => x.TimeStamp)
+        .Take((int)count)
         .ToArray();
       return items.GroupBy(x => x.LocationId).OrderBy(x => x.Key).Select(group => new MarketStatChartResponse
       {

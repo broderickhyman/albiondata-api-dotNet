@@ -36,27 +36,13 @@ namespace albiondata_api_dotNet.Controllers
 
     public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, string itemList, string locationList, string qualityList, ApiVersion apiVersion)
     {
-      if (itemList == null) itemList = "";
-      if (locationList == null) locationList = "";
-      if (qualityList == null || apiVersion == ApiVersion.One) qualityList = "";
+      if (string.IsNullOrWhiteSpace(itemList)) itemList = "";
+      if (string.IsNullOrWhiteSpace(locationList)) locationList = "";
+      if (string.IsNullOrWhiteSpace(qualityList) || apiVersion == ApiVersion.One) qualityList = "";
 
       var itemIds = itemList.Split(",", StringSplitOptions.RemoveEmptyEntries);
-      var locations = locationList.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(location =>
-      {
-        if (!string.Equals(location, "Black Market", StringComparison.OrdinalIgnoreCase))
-        {
-          location = location.Replace(" Market", "", StringComparison.OrdinalIgnoreCase);
-        }
-        return location.Replace(" ", "");
-      });
-      var qualities = qualityList.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(quality =>
-      {
-        if (byte.TryParse(quality, out var result))
-        {
-          return result;
-        }
-        return 0;
-      }).Where(x => x > 0 && x < 6);
+      var locationIDs = Utilities.ParseLocationList(locationList);
+      var qualities = Utilities.ParseQualityList(qualityList);
 
       var queryItems = context.MarketOrders.AsNoTracking()
         .Where(x => x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
@@ -71,30 +57,21 @@ namespace albiondata_api_dotNet.Controllers
       var locationPredicate = PredicateBuilder.False<MarketOrderDB>();
       var qualityPredicate = PredicateBuilder.False<MarketOrderDB>();
 
-      var locationWhereCount = 0;
-      foreach (var location in locations)
+      foreach (var locationID in locationIDs)
       {
-        try
-        {
-          var locationId = (ushort)Enum.Parse<Location>(location, true);
-          locationPredicate = locationPredicate.Or(x => x.LocationId == locationId);
-          locationWhereCount++;
-        }
-        catch (ArgumentException) { }
+        locationPredicate = locationPredicate.Or(x => x.LocationId == locationID);
       }
-      var qualityWhereCount = 0;
       foreach (var quality in qualities)
       {
         qualityPredicate = qualityPredicate.Or(x => x.QualityLevel == quality);
-        qualityWhereCount++;
       }
 
       queryItems = queryItems.Where(itemTypePredicate);
-      if (locationWhereCount > 0)
+      if (locationIDs.Any())
       {
         queryItems = queryItems.Where(locationPredicate);
       }
-      if (qualityWhereCount > 0)
+      if (qualities.Any())
       {
         queryItems = queryItems.Where(qualityPredicate);
       }
