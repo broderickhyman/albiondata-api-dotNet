@@ -149,7 +149,7 @@ namespace albiondata_api_dotNet.Controllers
 
       if (!locationIDs.Any())
       {
-        locationIDs = Enum.GetValues(typeof(Location)).Cast<ushort>();
+        locationIDs = Enum.GetValues(typeof(Location)).Cast<Location>().Select(x => (ushort)x);
       }
       foreach (var itemId in itemIds)
       {
