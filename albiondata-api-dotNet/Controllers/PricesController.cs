@@ -87,7 +87,8 @@ namespace albiondata_api_dotNet.Controllers
       }
 
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.LocationId });
-      var responses = new Dictionary<Tuple<string, ushort>, MarketResponse>();
+      var foundItemLocationGroups = new HashSet<Tuple<string, ushort>>();
+      var responses = new List<MarketResponse>();
       foreach (var group in groups)
       {
         var dict = new Dictionary<string, UpdatedAggregate>();
@@ -129,7 +130,8 @@ namespace albiondata_api_dotNet.Controllers
           }
         }
 
-        responses.Add(Tuple.Create(group.Key.ItemTypeId, group.Key.LocationId), new MarketResponse
+        foundItemLocationGroups.Add(Tuple.Create(group.Key.ItemTypeId, group.Key.LocationId));
+        responses.Add(new MarketResponse
         {
           ItemTypeId = group.Key.ItemTypeId,
           City = Locations.GetName(group.Key.LocationId),
@@ -154,10 +156,11 @@ namespace albiondata_api_dotNet.Controllers
         foreach (var locationId in locationIDs)
         {
           var key = Tuple.Create(itemId, locationId);
-          if (!responses.ContainsKey(key))
+          if (!foundItemLocationGroups.Contains(key))
           {
+            foundItemLocationGroups.Add(Tuple.Create(itemId, locationId));
             var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
-            responses.Add(Tuple.Create(itemId, locationId), new MarketResponse
+            responses.Add(new MarketResponse
             {
               ItemTypeId = itemId,
               City = Locations.GetName(locationId),
@@ -171,7 +174,7 @@ namespace albiondata_api_dotNet.Controllers
         }
       }
 
-      return responses.Values.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
+      return responses.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
     }
 
     private class UpdatedAggregate
