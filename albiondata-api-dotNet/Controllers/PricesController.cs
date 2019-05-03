@@ -87,7 +87,7 @@ namespace albiondata_api_dotNet.Controllers
       }
 
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.LocationId });
-      var responses = new List<MarketResponse>();
+      var responses = new Dictionary<Tuple<string, ushort>, MarketResponse>();
       foreach (var group in groups)
       {
         var dict = new Dictionary<string, UpdatedAggregate>();
@@ -129,7 +129,7 @@ namespace albiondata_api_dotNet.Controllers
           }
         }
 
-        responses.Add(new MarketResponse
+        responses.Add(Tuple.Create(group.Key.ItemTypeId, group.Key.LocationId), new MarketResponse
         {
           ItemTypeId = group.Key.ItemTypeId,
           City = Locations.GetName(group.Key.LocationId),
@@ -145,7 +145,33 @@ namespace albiondata_api_dotNet.Controllers
         });
       }
 
-      return responses.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
+      if (!locationIDs.Any())
+      {
+        locationIDs = Enum.GetValues(typeof(Location)).Cast<ushort>();
+      }
+      foreach (var itemId in itemIds)
+      {
+        foreach (var locationId in locationIDs)
+        {
+          var key = Tuple.Create(itemId, locationId);
+          if (!responses.ContainsKey(key))
+          {
+            var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
+            responses.Add(Tuple.Create(itemId, locationId), new MarketResponse
+            {
+              ItemTypeId = itemId,
+              City = Locations.GetName(locationId),
+              QualityLevel = 0,
+              SellPriceMin = historical.PriceMin,
+              SellPriceMinDate = historical.TimeStamp,
+              SellPriceMax = historical.PriceMax,
+              SellPriceMaxDate = historical.TimeStamp,
+            });
+          }
+        }
+      }
+
+      return responses.Values.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
     }
 
     private class UpdatedAggregate
