@@ -45,7 +45,7 @@ namespace albiondata_api_dotNet.Controllers
       var qualities = Utilities.ParseQualityList(qualityList);
 
       var queryItems = context.MarketOrders.AsNoTracking()
-        .Where(x => x.UpdatedAt > DateTime.UtcNow.AddDays(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
+        .Where(x => x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
       var itemTypePredicate = PredicateBuilder.False<MarketOrderDB>();
       var whereCount = 0;
       foreach (var itemId in itemIds)

@@ -28,7 +28,7 @@ namespace albiondata_api_dotNet.Controllers
 
     private IEnumerable<MarketStatChartResponse> ConvertToResponse(IEnumerable<MarketStat> items)
     {
-      return items.GroupBy(x => x.LocationId).OrderBy(x => x.Key).Select(group => new MarketStatChartResponse
+      return items.OrderBy(x => x.TimeStamp).GroupBy(x => x.LocationId).Select(group => new MarketStatChartResponse
       {
         Location = Locations.GetName(group.Key),
         Data = new MarketStatResponse
@@ -38,7 +38,7 @@ namespace albiondata_api_dotNet.Controllers
           PricesMax = group.Select(x => x.PriceMax).ToList(),
           PricesMin = group.Select(x => x.PriceMin).ToList()
         }
-      });
+      }).OrderBy(x => x.Location);
     }
 
     public static IEnumerable<MarketStat> GetByItemId(MainContext context, string itemId, string locationList, DateTime? date = null, uint count = 0)
@@ -63,11 +63,12 @@ namespace albiondata_api_dotNet.Controllers
         itemQuery = itemQuery.Where(locationPredicate);
       }
 
-      itemQuery = itemQuery.OrderByDescending(x => x.TimeStamp);
-      if (count > 0 && locationIDs.Count() == 1)
+      var takeCount = count > 0 && locationIDs.Count() == 1;
+      if (takeCount)
       {
-        itemQuery = itemQuery.Take((int)count);
+        itemQuery = itemQuery.OrderByDescending(x => x.TimeStamp).Take((int)count);
       }
+
       return itemQuery.ToArray();
     }
   }
