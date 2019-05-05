@@ -87,7 +87,7 @@ namespace albiondata_api_dotNet.Controllers
       }
 
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.LocationId });
-      var foundItemLocationGroups = new HashSet<Tuple<string, ushort>>();
+      var foundItemLocationGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var responses = new List<MarketResponse>();
       foreach (var group in groups)
       {
@@ -130,7 +130,7 @@ namespace albiondata_api_dotNet.Controllers
           }
         }
 
-        foundItemLocationGroups.Add(Tuple.Create(group.Key.ItemTypeId, group.Key.LocationId));
+        foundItemLocationGroups.Add(CreateKey(group.Key.ItemTypeId, group.Key.LocationId));
         responses.Add(new MarketResponse
         {
           ItemTypeId = group.Key.ItemTypeId,
@@ -155,16 +155,16 @@ namespace albiondata_api_dotNet.Controllers
       {
         foreach (var locationId in locationIDs)
         {
-          var key = Tuple.Create(itemId, locationId);
+          var key = CreateKey(itemId, locationId);
           if (!foundItemLocationGroups.Contains(key))
           {
-            foundItemLocationGroups.Add(Tuple.Create(itemId, locationId));
+            foundItemLocationGroups.Add(CreateKey(itemId, locationId));
             var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
             if (historical != default(MarketStat))
             {
               responses.Add(new MarketResponse
               {
-                ItemTypeId = itemId,
+                ItemTypeId = historical.ItemId,
                 City = Locations.GetName(locationId),
                 QualityLevel = 0,
                 SellPriceMin = historical.PriceMin,
@@ -178,6 +178,11 @@ namespace albiondata_api_dotNet.Controllers
       }
 
       return responses.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
+    }
+
+    private static string CreateKey(string itemId, ushort locationId)
+    {
+      return $"{itemId}~~{locationId}";
     }
 
     private class UpdatedAggregate
