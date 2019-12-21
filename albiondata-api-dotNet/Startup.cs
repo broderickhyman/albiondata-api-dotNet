@@ -1,5 +1,4 @@
 ﻿using AlbionData.Models;
-using Elastic.Apm.NetCoreAll;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -55,7 +54,6 @@ namespace albiondata_api_dotNet
         {
           ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
-        app.UseAllElasticApm(Configuration);
       }
 
       app.UseCors(builder => builder.AllowAnyOrigin());
