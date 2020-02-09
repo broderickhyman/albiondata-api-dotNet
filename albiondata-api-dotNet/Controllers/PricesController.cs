@@ -155,7 +155,7 @@ namespace albiondata_api_dotNet.Controllers
           if (!foundItemLocationGroups.Contains(key))
           {
             foundItemLocationGroups.Add(CreateKey(itemId, locationId));
-            var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), null, apiVersion, DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
+            var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), null, ApiVersion.One, DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
             if (historical != default(MarketHistoryDB))
             {
               var price = historical.SilverAmount / historical.ItemAmount;
