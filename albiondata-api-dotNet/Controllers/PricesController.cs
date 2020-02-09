@@ -46,35 +46,24 @@ namespace albiondata_api_dotNet.Controllers
 
       var queryItems = context.MarketOrders.AsNoTracking()
         .Where(x => x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
-      var itemTypePredicate = PredicateBuilder.False<MarketOrderDB>();
-      var whereCount = 0;
-      foreach (var itemId in itemIds)
+      if (itemIds.Length > 0)
       {
-        itemTypePredicate = itemTypePredicate.Or(x => x.ItemTypeId == itemId);
-        whereCount++;
+        // Converts to SQL IN clause
+        queryItems = queryItems.Where(x => itemIds.Contains(x.ItemTypeId));
       }
-      if (whereCount == 0) return new[] { new MarketResponse() };
-      var locationPredicate = PredicateBuilder.False<MarketOrderDB>();
-      var qualityPredicate = PredicateBuilder.False<MarketOrderDB>();
-
-      foreach (var location in locations)
+      else
       {
-        locationPredicate = locationPredicate.Or(x => x.LocationId == location);
+        return Enumerable.Empty<MarketResponse>();
       }
-      foreach (var quality in qualities)
-      {
-        qualityPredicate = qualityPredicate.Or(x => x.QualityLevel == quality);
-      }
-
-      queryItems = queryItems.Where(itemTypePredicate);
       if (locations.Any())
       {
-        queryItems = queryItems.Where(locationPredicate);
+        queryItems = queryItems.Where(x => locations.Contains(x.LocationId));
       }
       if (qualities.Any())
       {
-        queryItems = queryItems.Where(qualityPredicate);
+        queryItems = queryItems.Where(x => qualities.Contains(x.QualityLevel));
       }
+
       var items = queryItems.ToArray();
       Debug.WriteLine(items.Length);
 

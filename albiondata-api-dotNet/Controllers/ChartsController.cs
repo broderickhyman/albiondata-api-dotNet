@@ -53,14 +53,9 @@ namespace albiondata_api_dotNet.Controllers
       var itemQuery = context.MarketStats.AsNoTracking()
         .Where(x => x.ItemId == itemId && x.Timestamp > date);
 
-      var locationPredicate = PredicateBuilder.False<MarketStat>();
-      foreach (var location in locations)
-      {
-        locationPredicate = locationPredicate.Or(x => x.Location == location);
-      }
       if (locations.Any())
       {
-        itemQuery = itemQuery.Where(locationPredicate);
+        itemQuery = itemQuery.Where(x => locations.Contains(x.Location));
       }
 
       var takeCount = count > 0 && locations.Count() == 1;
