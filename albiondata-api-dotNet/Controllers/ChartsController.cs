@@ -22,6 +22,7 @@ namespace albiondata_api_dotNet.Controllers
     [HttpGet("api/v1/stats/[controller]/{itemId}")]
     public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
     {
+      Utilities.SetElasticTransactionName("GET Charts Stats v1");
       const ApiVersion version = ApiVersion.One;
       return Ok(ConvertToListResponse(GetByItemId(context, itemId, locationList, null, version, date)));
     }
@@ -30,6 +31,7 @@ namespace albiondata_api_dotNet.Controllers
     [ApiExplorerSettings(GroupName = "v2")]
     public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date, [FromQuery(Name = "qualities")] string qualityList)
     {
+      Utilities.SetElasticTransactionName("GET Charts Stats v2");
       const ApiVersion version = ApiVersion.Two;
       return Ok(ConvertToListResponsev2(GetByItemId(context, itemId, locationList, qualityList, version, date)));
     }
@@ -38,6 +40,7 @@ namespace albiondata_api_dotNet.Controllers
     [ApiExplorerSettings(GroupName = "v2")]
     public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date, [FromQuery(Name = "qualities")] string qualityList)
     {
+      Utilities.SetElasticTransactionName("GET Charts History v2");
       return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, qualityList, ApiVersion.Two, date)));
     }
 
@@ -146,6 +149,12 @@ namespace albiondata_api_dotNet.Controllers
       }
       var locations = Utilities.ParseLocationList(locationList);
       var qualities = Utilities.ParseQualityList(qualityList);
+
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.DateSearch, date.Value.ToString("s"));
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIds, itemId);
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIdCount, "1");
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Locations, string.Join(',', locations));
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Qualities, string.Join(',', qualities));
 
       var itemQuery = context.MarketHistories.AsNoTracking()
         .Where(x => x.ItemTypeId == itemId && x.Timestamp > date);

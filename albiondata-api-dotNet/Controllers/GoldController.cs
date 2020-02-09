@@ -23,10 +23,15 @@ namespace albiondata_api_dotNet.Controllers
     [ApiExplorerSettings(GroupName = "v2")]
     public ActionResult<IEnumerable<GoldPrice>> Get([FromQuery] DateTime? date, [FromQuery(Name = "count")] int count = 0)
     {
+      Utilities.SetElasticTransactionName("GET Gold v2");
       if (date == null)
       {
         date = DateTime.UtcNow.AddDays(-30);
       }
+
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.DateSearch, date.Value.ToString("s"));
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.RequestCount, count.ToString());
+
       var goldQuery = context.GoldPrices.AsNoTracking()
         .Where(x => x.Timestamp > date);
       if (count > 0)

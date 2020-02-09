@@ -19,6 +19,7 @@ namespace albiondata_api_dotNet.Controllers
     [HttpGet("api/v1/stats/[controller]/{itemList}")]
     public ViewResult Index([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
+      Utilities.SetElasticTransactionName("GET View v1");
       return View(PricesController.GetMarketByItemId(context, itemList, locationList, null, ApiVersion.One));
     }
 
@@ -26,6 +27,7 @@ namespace albiondata_api_dotNet.Controllers
     [ApiExplorerSettings(GroupName = "v2")]
     public ViewResult Index([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
     {
+      Utilities.SetElasticTransactionName("GET View v2");
       return View(PricesController.GetMarketByItemId(context, itemList, locationList, qualityList, ApiVersion.Two));
     }
   }

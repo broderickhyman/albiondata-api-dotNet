@@ -24,6 +24,7 @@ namespace albiondata_api_dotNet.Controllers
     [HttpGet("api/v1/stats/[controller]/{itemList}")]
     public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
+      Utilities.SetElasticTransactionName("GET Prices v1");
       return Ok(GetMarketByItemId(context, itemList, locationList, null, ApiVersion.One));
     }
 
@@ -31,6 +32,7 @@ namespace albiondata_api_dotNet.Controllers
     [ApiExplorerSettings(GroupName = "v2")]
     public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
     {
+      Utilities.SetElasticTransactionName("GET Prices v2");
       return Ok(GetMarketByItemId(context, itemList, locationList, qualityList, ApiVersion.Two));
     }
 
@@ -43,6 +45,11 @@ namespace albiondata_api_dotNet.Controllers
       var itemIds = itemList.Split(",", StringSplitOptions.RemoveEmptyEntries);
       var locations = Utilities.ParseLocationList(locationList);
       var qualities = Utilities.ParseQualityList(qualityList);
+
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIds, string.Join(',', itemIds));
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIdCount, itemIds.Length.ToString());
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Locations, string.Join(',', locations));
+      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Qualities, string.Join(',', qualities));
 
       var queryItems = context.MarketOrders.AsNoTracking()
         .Where(x => x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
