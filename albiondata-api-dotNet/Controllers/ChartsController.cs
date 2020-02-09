@@ -28,12 +28,12 @@ namespace albiondata_api_dotNet.Controllers
 
     private IEnumerable<MarketStatChartResponse> ConvertToResponse(IEnumerable<MarketStat> items)
     {
-      return items.OrderBy(x => x.TimeStamp).GroupBy(x => x.LocationId).Select(group => new MarketStatChartResponse
+      return items.OrderBy(x => x.Timestamp).GroupBy(x => x.Location).Select(group => new MarketStatChartResponse
       {
         Location = Locations.GetName(group.Key),
         Data = new MarketStatResponse
         {
-          TimeStamps = group.Select(x => (ulong)new DateTimeOffset(x.TimeStamp).ToUnixTimeMilliseconds()).ToList(),
+          Timestamps = group.Select(x => (ulong)new DateTimeOffset(x.Timestamp).ToUnixTimeMilliseconds()).ToList(),
           PricesAvg = group.Select(x => x.PriceAverage).ToList(),
           PricesMax = group.Select(x => x.PriceMax).ToList(),
           PricesMin = group.Select(x => x.PriceMin).ToList()
@@ -48,25 +48,25 @@ namespace albiondata_api_dotNet.Controllers
       {
         date = DateTime.UtcNow.AddDays(-30);
       }
-      var locationIDs = Utilities.ParseLocationList(locationList);
+      var locations = Utilities.ParseLocationList(locationList);
 
       var itemQuery = context.MarketStats.AsNoTracking()
-        .Where(x => x.ItemId == itemId && x.TimeStamp > date);
+        .Where(x => x.ItemId == itemId && x.Timestamp > date);
 
       var locationPredicate = PredicateBuilder.False<MarketStat>();
-      foreach (var locationID in locationIDs)
+      foreach (var location in locations)
       {
-        locationPredicate = locationPredicate.Or(x => x.LocationId == locationID);
+        locationPredicate = locationPredicate.Or(x => x.Location == location);
       }
-      if (locationIDs.Any())
+      if (locations.Any())
       {
         itemQuery = itemQuery.Where(locationPredicate);
       }
 
-      var takeCount = count > 0 && locationIDs.Count() == 1;
+      var takeCount = count > 0 && locations.Count() == 1;
       if (takeCount)
       {
-        itemQuery = itemQuery.OrderByDescending(x => x.TimeStamp).Take((int)count);
+        itemQuery = itemQuery.OrderByDescending(x => x.Timestamp).Take((int)count);
       }
 
       return itemQuery.ToArray();

@@ -15,14 +15,14 @@ namespace albiondata_api_dotNet
   public class Program
   {
     [Option(Description = "SQL Connection Url", ShortName = "s", ShowInHelpText = true)]
-    public static string SqlConnectionUrl { get; } = "SslMode=none;server=localhost;port=3306;database=albion;user=root;password=";
+    public static string SqlConnectionUrl { get; set; } = "SslMode=none;server=localhost;port=3306;database=albion;user=root;password=";
 
     [Option(Description = "Max age in Hours of returned orders", ShortName = "a", ShowInHelpText = true)]
     [Range(1, 168)]
-    public static int MaxAge { get; } = 24;
+    public static int MaxAge { get; set; } = 24;
 
     [Option(Description = "Enable Debug Logging", ShortName = "d", LongName = "debug", ShowInHelpText = true)]
-    public static bool Debug { get; }
+    public static bool Debug { get; set; }
 
     public static string[] args;
 

@@ -41,7 +41,7 @@ namespace albiondata_api_dotNet.Controllers
       if (string.IsNullOrWhiteSpace(qualityList) || apiVersion == ApiVersion.One) qualityList = "";
 
       var itemIds = itemList.Split(",", StringSplitOptions.RemoveEmptyEntries);
-      var locationIDs = Utilities.ParseLocationList(locationList);
+      var locations = Utilities.ParseLocationList(locationList);
       var qualities = Utilities.ParseQualityList(qualityList);
 
       var queryItems = context.MarketOrders.AsNoTracking()
@@ -57,9 +57,9 @@ namespace albiondata_api_dotNet.Controllers
       var locationPredicate = PredicateBuilder.False<MarketOrderDB>();
       var qualityPredicate = PredicateBuilder.False<MarketOrderDB>();
 
-      foreach (var locationID in locationIDs)
+      foreach (var location in locations)
       {
-        locationPredicate = locationPredicate.Or(x => x.LocationId == locationID);
+        locationPredicate = locationPredicate.Or(x => x.LocationId == location);
       }
       foreach (var quality in qualities)
       {
@@ -67,7 +67,7 @@ namespace albiondata_api_dotNet.Controllers
       }
 
       queryItems = queryItems.Where(itemTypePredicate);
-      if (locationIDs.Any())
+      if (locations.Any())
       {
         queryItems = queryItems.Where(locationPredicate);
       }
@@ -147,13 +147,13 @@ namespace albiondata_api_dotNet.Controllers
         });
       }
 
-      if (!locationIDs.Any())
+      if (!locations.Any())
       {
-        locationIDs = Enum.GetValues(typeof(Location)).Cast<Location>().Select(x => (ushort)x);
+        locations = Enum.GetValues(typeof(Location)).Cast<Location>().Select(x => (ushort)x);
       }
       foreach (var itemId in itemIds)
       {
-        foreach (var locationId in locationIDs)
+        foreach (var locationId in locations)
         {
           var key = CreateKey(itemId, locationId);
           if (!foundItemLocationGroups.Contains(key))
@@ -168,9 +168,9 @@ namespace albiondata_api_dotNet.Controllers
                 City = Locations.GetName(locationId),
                 QualityLevel = 0,
                 SellPriceMin = historical.PriceMin,
-                SellPriceMinDate = historical.TimeStamp,
+                SellPriceMinDate = historical.Timestamp,
                 SellPriceMax = historical.PriceMax,
-                SellPriceMaxDate = historical.TimeStamp,
+                SellPriceMaxDate = historical.Timestamp,
               });
             }
           }

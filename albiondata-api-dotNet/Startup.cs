@@ -3,18 +3,12 @@ using Elastic.Apm.NetCoreAll;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Swashbuckle.AspNetCore.Swagger;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.OpenApi.Models;
 
 namespace albiondata_api_dotNet
 {
@@ -36,16 +30,16 @@ namespace albiondata_api_dotNet
     public void ConfigureServices(IServiceCollection services)
     {
       services.AddDbContext<MainContext>(opt => opt.UseMySql(Program.SqlConnectionUrl));
-      services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+      services.AddMvc();
       services.AddCors();
 
-      services.AddSwaggerGen(c => c.SwaggerDoc("v1", new Info { Title = "Albion Online Data API", Version = "v1" }));
-      services.AddSwaggerGen(c => c.SwaggerDoc("v2", new Info { Title = "Albion Online Data API", Version = "v2" }));
+      services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo { Title = "Albion Online Data API", Version = "v1" }));
+      services.AddSwaggerGen(c => c.SwaggerDoc("v2", new OpenApiInfo { Title = "Albion Online Data API", Version = "v2" }));
     }
 
-    public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
-      if (env.IsDevelopment())
+      if (string.Equals(env.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase))
       {
         app.UseDeveloperExceptionPage();
       }
@@ -57,9 +51,6 @@ namespace albiondata_api_dotNet
         });
         app.UseAllElasticApm(Configuration);
       }
-
-      app.UseCors(builder => builder.AllowAnyOrigin());
-
       app.UseSwagger(x => x.RouteTemplate = "api/{documentName}/swagger.json");
 
       app.UseSwaggerUI(c =>
@@ -69,7 +60,10 @@ namespace albiondata_api_dotNet
         c.RoutePrefix = "api/swagger";
       });
 
-      app.UseMvc();
+      app.UseRouting();
+      app.UseCors(builder => builder.AllowAnyOrigin());
+
+      app.UseEndpoints(endpoints => endpoints.MapControllers());
     }
   }
 }
