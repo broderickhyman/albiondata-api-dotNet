@@ -148,17 +148,18 @@ namespace albiondata_api_dotNet.Controllers
           if (!foundItemLocationGroups.Contains(key))
           {
             foundItemLocationGroups.Add(CreateKey(itemId, locationId));
-            var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
-            if (historical != default(MarketStat))
+            var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), null, apiVersion, DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
+            if (historical != default(MarketHistoryDB))
             {
+              var price = historical.SilverAmount / historical.ItemAmount;
               responses.Add(new MarketResponse
               {
-                ItemTypeId = historical.ItemId,
+                ItemTypeId = historical.ItemTypeId,
                 City = Locations.GetName(locationId),
-                QualityLevel = 0,
-                SellPriceMin = historical.PriceMin,
+                QualityLevel = historical.QualityLevel,
+                SellPriceMin = price,
                 SellPriceMinDate = historical.Timestamp,
-                SellPriceMax = historical.PriceMax,
+                SellPriceMax = price,
                 SellPriceMaxDate = historical.Timestamp,
               });
             }

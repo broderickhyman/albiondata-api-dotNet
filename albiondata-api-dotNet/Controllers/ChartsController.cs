@@ -10,7 +10,6 @@ namespace albiondata_api_dotNet.Controllers
 {
   [ApiController]
   [Produces("application/json")]
-  [Route("api/v1/stats/[controller]")]
   public class ChartsController : ControllerBase
   {
     private readonly MainContext context;
@@ -20,51 +19,184 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("{itemId}")]
+    [HttpGet("api/v1/stats/[controller]/{itemId}")]
     public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
     {
-      return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, date)));
+      const ApiVersion version = ApiVersion.One;
+      return Ok(ConvertToListResponse(GetByItemId(context, itemId, locationList, null, version, date)));
     }
 
-    private IEnumerable<MarketStatChartResponse> ConvertToResponse(IEnumerable<MarketStat> items)
+    [HttpGet("api/v2/stats/[controller]/{itemId}")]
+    [ApiExplorerSettings(GroupName = "v2")]
+    public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date, [FromQuery(Name = "qualities")] string qualityList)
     {
-      return items.OrderBy(x => x.Timestamp).GroupBy(x => x.Location).Select(group => new MarketStatChartResponse
-      {
-        Location = Locations.GetName(group.Key),
-        Data = new MarketStatResponse
-        {
-          Timestamps = group.Select(x => (ulong)new DateTimeOffset(x.Timestamp).ToUnixTimeMilliseconds()).ToList(),
-          PricesAvg = group.Select(x => x.PriceAverage).ToList(),
-          PricesMax = group.Select(x => x.PriceMax).ToList(),
-          PricesMin = group.Select(x => x.PriceMin).ToList()
-        }
-      }).OrderBy(x => x.Location);
+      const ApiVersion version = ApiVersion.Two;
+      return Ok(ConvertToListResponsev2(GetByItemId(context, itemId, locationList, qualityList, version, date)));
     }
 
-    public static IEnumerable<MarketStat> GetByItemId(MainContext context, string itemId, string locationList, DateTime? date = null, uint count = 0)
+    [HttpGet("api/v2/stats/history/{itemId}")]
+    [ApiExplorerSettings(GroupName = "v2")]
+    public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date, [FromQuery(Name = "qualities")] string qualityList)
+    {
+      return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, qualityList, ApiVersion.Two, date)));
+    }
+
+    private IEnumerable<MarketStatChartResponse> ConvertToListResponse(IEnumerable<MarketHistoryDB> items)
+    {
+      return items.OrderBy(x => x.Timestamp).GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel }).Select(mainGroup =>
+      {
+        var data = new MarketStatResponse()
+        {
+          ItemCount = new List<ulong>(),
+          PricesAvg = new List<decimal>(),
+          PricesMax = new List<ulong>(),
+          PricesMin = new List<ulong>(),
+          Timestamps = new List<ulong>()
+        };
+        foreach (var timeGroup in mainGroup.GroupBy(x => x.Timestamp))
+        {
+          var itemCount = (ulong)timeGroup.Sum(x => (long)x.ItemAmount);
+          var silverAmount = (ulong)timeGroup.Sum(x => (long)x.SilverAmount);
+          var averagePrice = silverAmount / itemCount;
+          data.ItemCount.Add(itemCount);
+          data.Timestamps.Add((ulong)new DateTimeOffset(timeGroup.Key).ToUnixTimeMilliseconds());
+          // Since we are getting these values from the game now, we just have one value
+          data.PricesAvg.Add(averagePrice);
+          data.PricesMin.Add(averagePrice);
+          data.PricesMax.Add(averagePrice);
+        }
+
+        return new MarketStatChartResponse
+        {
+          Location = Locations.GetName(mainGroup.Key.Location),
+          ItemTypeId = mainGroup.Key.ItemTypeId,
+          QualityLevel = mainGroup.Key.QualityLevel,
+          Data = data
+        };
+      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
+    }
+
+    private IEnumerable<MarketStatChartResponse> ConvertToListResponsev2(IEnumerable<MarketHistoryDB> items)
+    {
+      return items.OrderBy(x => x.Timestamp).GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel }).Select(mainGroup =>
+      {
+        var data = new MarketStatResponsev2()
+        {
+          ItemCount = new List<ulong>(),
+          PricesAverage = new List<decimal>(),
+          Timestamps = new List<DateTime>()
+        };
+        foreach (var timeGroup in mainGroup.GroupBy(x => x.Timestamp))
+        {
+          var itemCount = (ulong)timeGroup.Sum(x => (long)x.ItemAmount);
+          var silverAmount = (ulong)timeGroup.Sum(x => (long)x.SilverAmount);
+          var averagePrice = silverAmount / itemCount;
+          data.ItemCount.Add(itemCount);
+          data.Timestamps.Add(timeGroup.Key);
+          // Since we are getting these values from the game now, we just have one value
+          data.PricesAverage.Add(averagePrice);
+        }
+
+        return new MarketStatChartResponsev2
+        {
+          Location = Locations.GetName(mainGroup.Key.Location),
+          ItemTypeId = mainGroup.Key.ItemTypeId,
+          QualityLevel = mainGroup.Key.QualityLevel,
+          Data = data
+        };
+      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
+    }
+
+    private IEnumerable<MarketHistoriesResponse> ConvertToResponse(IEnumerable<MarketHistoryDB> items)
+    {
+      return items.OrderBy(x => x.Timestamp).GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel }).Select(mainGroup =>
+      {
+        var data = new List<MarketHistoryResponse>();
+        foreach (var timeGroup in mainGroup.GroupBy(x => x.Timestamp))
+        {
+          var itemCount = (ulong)timeGroup.Sum(x => (long)x.ItemAmount);
+          var silverAmount = (ulong)timeGroup.Sum(x => (long)x.SilverAmount);
+          var averagePrice = silverAmount / itemCount;
+          data.Add(new MarketHistoryResponse()
+          {
+            AveragePrice = averagePrice,
+            ItemCount = itemCount,
+            Timestamp = timeGroup.Key
+          });
+        }
+
+        return new MarketHistoriesResponse
+        {
+          Location = Locations.GetName(mainGroup.Key.Location),
+          ItemTypeId = mainGroup.Key.ItemTypeId,
+          QualityLevel = mainGroup.Key.QualityLevel,
+          Data = data
+        };
+      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
+    }
+
+    public static IEnumerable<MarketHistoryDB> GetByItemId(MainContext context, string itemId, string locationList, string qualityList, ApiVersion apiVersion, DateTime? date = null, uint count = 0)
     {
       if (string.IsNullOrWhiteSpace(locationList)) { locationList = ""; }
+      if (string.IsNullOrWhiteSpace(qualityList) || apiVersion == ApiVersion.One) qualityList = "";
+
       if (date == null)
       {
         date = DateTime.UtcNow.AddDays(-30);
       }
       var locations = Utilities.ParseLocationList(locationList);
+      var qualities = Utilities.ParseQualityList(qualityList);
 
-      var itemQuery = context.MarketStats.AsNoTracking()
-        .Where(x => x.ItemId == itemId && x.Timestamp > date);
+      var itemQuery = context.MarketHistories.AsNoTracking()
+        .Where(x => x.ItemTypeId == itemId && x.Timestamp > date);
 
       if (locations.Any())
       {
         itemQuery = itemQuery.Where(x => locations.Contains(x.Location));
       }
+      if (qualities.Any())
+      {
+        itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
+      }
 
+      var items = Enumerable.Empty<MarketHistoryDB>();
       var takeCount = count > 0 && locations.Count() == 1;
       if (takeCount)
       {
-        itemQuery = itemQuery.OrderByDescending(x => x.Timestamp).Take((int)count);
+        if (apiVersion == ApiVersion.One)
+        {
+          items = itemQuery.GroupBy(x => new { x.Location, x.ItemTypeId, x.Timestamp })
+            .OrderByDescending(x => x.Key.Timestamp)
+            .Select(x => new MarketHistoryDB()
+            {
+              ItemAmount = (ulong)x.Sum(x => (long)x.ItemAmount),
+              ItemTypeId = x.Key.ItemTypeId,
+              Location = x.Key.Location,
+              QualityLevel = 0,
+              SilverAmount = (ulong)x.Sum(x => (long)x.SilverAmount),
+              Timestamp = x.Key.Timestamp
+            })
+            .Take((int)count);
+        }
+        else
+        {
+          items = itemQuery.OrderByDescending(x => x.Timestamp).Take((int)count);
+        }
+      }
+      else
+      {
+        items = itemQuery.ToArray();
       }
 
-      return itemQuery.ToArray();
+      if (apiVersion == ApiVersion.One)
+      {
+        foreach (var item in items)
+        {
+          item.QualityLevel = 0;
+        }
+      }
+
+      return items;
     }
   }
 }
