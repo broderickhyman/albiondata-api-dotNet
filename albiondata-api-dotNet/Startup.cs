@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using Microsoft.OpenApi.Models;
+using System.Text.Json;
 
 namespace albiondata_api_dotNet
 {
@@ -30,7 +31,7 @@ namespace albiondata_api_dotNet
     public void ConfigureServices(IServiceCollection services)
     {
       services.AddDbContext<MainContext>(opt => opt.UseMySql(Program.SqlConnectionUrl));
-      services.AddMvc();
+      services.AddControllersWithViews().AddNewtonsoftJson();
       services.AddCors();
 
       services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo { Title = "Albion Online Data API", Version = "v1" }));
