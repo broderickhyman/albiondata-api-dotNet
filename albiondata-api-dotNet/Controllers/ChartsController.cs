@@ -24,24 +24,26 @@ namespace albiondata_api_dotNet.Controllers
     {
       Utilities.SetElasticTransactionName("GET Charts Stats v1");
       const ApiVersion version = ApiVersion.One;
-      return Ok(ConvertToListResponse(GetByItemId(context, itemId, locationList, null, version, date)));
+      return Ok(ConvertToListResponse(GetByItemId(context, itemId, locationList, null, version, date, 6)));
     }
 
     [HttpGet("api/v2/stats/[controller]/{itemId}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date, [FromQuery(Name = "qualities")] string qualityList)
+    public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
+      [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
       Utilities.SetElasticTransactionName("GET Charts Stats v2");
       const ApiVersion version = ApiVersion.Two;
-      return Ok(ConvertToListResponsev2(GetByItemId(context, itemId, locationList, qualityList, version, date)));
+      return Ok(ConvertToListResponsev2(GetByItemId(context, itemId, locationList, qualityList, version, date, scale)));
     }
 
     [HttpGet("api/v2/stats/history/{itemId}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date, [FromQuery(Name = "qualities")] string qualityList)
+    public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
+      [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
       Utilities.SetElasticTransactionName("GET Charts History v2");
-      return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, qualityList, ApiVersion.Two, date)));
+      return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, qualityList, ApiVersion.Two, date, scale)));
     }
 
     private IEnumerable<MarketStatChartResponse> ConvertToListResponse(IEnumerable<MarketHistoryDB> items)
@@ -138,7 +140,8 @@ namespace albiondata_api_dotNet.Controllers
       }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
     }
 
-    public static IEnumerable<MarketHistoryDB> GetByItemId(MainContext context, string itemId, string locationList, string qualityList, ApiVersion apiVersion, DateTime? date = null, uint count = 0)
+    public static IEnumerable<MarketHistoryDB> GetByItemId(MainContext context, string itemId, string locationList, string qualityList, ApiVersion apiVersion, DateTime? date,
+      byte scale, uint count = 0)
     {
       if (string.IsNullOrWhiteSpace(locationList)) { locationList = ""; }
       if (string.IsNullOrWhiteSpace(qualityList) || apiVersion == ApiVersion.One) qualityList = "";
@@ -156,8 +159,18 @@ namespace albiondata_api_dotNet.Controllers
       Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Locations, string.Join(',', locations));
       Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Qualities, string.Join(',', qualities));
 
+      var aggregation = default(TimeAggregation);
+      if (scale == 1)
+      {
+        aggregation = TimeAggregation.Hourly;
+      }
+      else if (scale == 6)
+      {
+        aggregation = TimeAggregation.QuarterDay;
+      }
+
       var itemQuery = context.MarketHistories.AsNoTracking()
-        .Where(x => x.ItemTypeId == itemId && x.Timestamp > date);
+        .Where(x => x.ItemTypeId == itemId && x.Timestamp > date && x.AggregationType == aggregation);
 
       if (locations.Any())
       {
