@@ -145,7 +145,15 @@ namespace albiondata_api_dotNet.Controllers
 
       if (!locations.Any())
       {
-        locations = Enum.GetValues(typeof(Location)).Cast<Location>().Select(x => (ushort)x);
+        locations = new Location[] {
+          Location.Caerleon,
+          Location.Thetford,
+          Location.FortSterling,
+          Location.Lymhurst,
+          Location.Bridgewatch,
+          Location.Martlock,
+          Location.BlackMarket
+        }.Select(x => (ushort)x);
       }
       foreach (var itemId in itemIds)
       {
@@ -155,21 +163,17 @@ namespace albiondata_api_dotNet.Controllers
           if (!foundItemLocationGroups.Contains(key))
           {
             foundItemLocationGroups.Add(CreateKey(itemId, locationId));
-            var historical = ChartsController.GetByItemId(context, itemId, locationId.ToString(), null, ApiVersion.One, DateTime.UtcNow.AddDays(-30), 1).FirstOrDefault();
-            if (historical != default(MarketHistoryDB))
+            // Don't look up historical prices here because it results in too many calls and too much time
+            responses.Add(new MarketResponse
             {
-              var price = historical.SilverAmount / historical.ItemAmount;
-              responses.Add(new MarketResponse
-              {
-                ItemTypeId = historical.ItemTypeId,
-                City = Locations.GetName(locationId),
-                QualityLevel = historical.QualityLevel,
-                SellPriceMin = price,
-                SellPriceMinDate = historical.Timestamp,
-                SellPriceMax = price,
-                SellPriceMaxDate = historical.Timestamp,
-              });
-            }
+              ItemTypeId = itemId,
+              City = Locations.GetName(locationId),
+              QualityLevel = 0,
+              SellPriceMin = 0,
+              SellPriceMinDate = DateTime.MinValue,
+              SellPriceMax = 0,
+              SellPriceMaxDate = DateTime.MinValue,
+            });
           }
         }
       }
