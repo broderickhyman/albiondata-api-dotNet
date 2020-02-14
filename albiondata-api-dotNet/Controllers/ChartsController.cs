@@ -1,10 +1,10 @@
-﻿using AlbionData.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using AlbionData.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace albiondata_api_dotNet.Controllers
 {
@@ -62,7 +62,11 @@ namespace albiondata_api_dotNet.Controllers
         {
           var itemCount = (ulong)timeGroup.Sum(x => (long)x.ItemAmount);
           var silverAmount = (ulong)timeGroup.Sum(x => (long)x.SilverAmount);
-          var averagePrice = silverAmount / itemCount;
+          ulong averagePrice = 0;
+          if (itemCount > 0)
+          {
+            averagePrice = silverAmount / itemCount;
+          }
           data.ItemCount.Add(itemCount);
           data.Timestamps.Add((ulong)new DateTimeOffset(timeGroup.Key).ToUnixTimeMilliseconds());
           // Since we are getting these values from the game now, we just have one value
@@ -95,7 +99,11 @@ namespace albiondata_api_dotNet.Controllers
         {
           var itemCount = (ulong)timeGroup.Sum(x => (long)x.ItemAmount);
           var silverAmount = (ulong)timeGroup.Sum(x => (long)x.SilverAmount);
-          var averagePrice = silverAmount / itemCount;
+          ulong averagePrice = 0;
+          if (itemCount > 0)
+          {
+            averagePrice = silverAmount / itemCount;
+          }
           data.ItemCount.Add(itemCount);
           data.Timestamps.Add(timeGroup.Key);
           // Since we are getting these values from the game now, we just have one value
@@ -121,7 +129,11 @@ namespace albiondata_api_dotNet.Controllers
         {
           var itemCount = (ulong)timeGroup.Sum(x => (long)x.ItemAmount);
           var silverAmount = (ulong)timeGroup.Sum(x => (long)x.SilverAmount);
-          var averagePrice = silverAmount / itemCount;
+          ulong averagePrice = 0;
+          if (itemCount > 0)
+          {
+            averagePrice = silverAmount / itemCount;
+          }
           data.Add(new MarketHistoryResponse()
           {
             AveragePrice = averagePrice,
