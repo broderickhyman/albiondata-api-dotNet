@@ -62,8 +62,9 @@ namespace albiondata_api_dotNet.Controllers
 m.*
 FROM market_history m
 LEFT JOIN market_history m2 ON m.item_id = m2.item_id AND m.id <> m2.id AND m.location = m2.location AND m.quality = m2.quality AND m2.timestamp > m.timestamp
-WHERE m2.timestamp IS null")
-        .AsNoTracking().Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28));
+WHERE m2.timestamp IS null
+AND m.aggregation = 6")
+        .AsNoTracking().Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-14));
 
       if (locations.Any())
       {
