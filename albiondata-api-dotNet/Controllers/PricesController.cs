@@ -50,29 +50,36 @@ namespace albiondata_api_dotNet.Controllers
       Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIdCount, itemIds.Length.ToString());
       Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Locations, string.Join(',', locations));
       Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Qualities, string.Join(',', qualities));
-
-      var queryItems = context.MarketOrders.AsNoTracking()
-        .Where(x => x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
-      if (itemIds.Length > 0)
-      {
-        // Converts to SQL IN clause
-        queryItems = queryItems.Where(x => itemIds.Contains(x.ItemTypeId));
-      }
-      else
+      if (itemIds.Length == 0)
       {
         return Enumerable.Empty<MarketResponse>();
       }
+
+      // Contains converts to SQL IN clause
+      var itemQuery = context.MarketOrders.AsNoTracking()
+        .Where(x => itemIds.Contains(x.ItemTypeId) && x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
+      var historyQuery = context.MarketHistories.FromSqlRaw(@"SELECT
+m.*
+FROM market_history m
+LEFT JOIN market_history m2 ON m.item_id = m2.item_id AND m.id <> m2.id AND m.location = m2.location AND m.quality = m2.quality AND m2.timestamp > m.timestamp
+WHERE m2.timestamp IS null")
+        .AsNoTracking().Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28));
+
       if (locations.Any())
       {
-        queryItems = queryItems.Where(x => locations.Contains(x.LocationId));
+        itemQuery = itemQuery.Where(x => locations.Contains(x.LocationId));
+        historyQuery = historyQuery.Where(x => locations.Contains(x.Location));
       }
       if (qualities.Any())
       {
-        queryItems = queryItems.Where(x => qualities.Contains(x.QualityLevel));
+        itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
+        historyQuery = historyQuery.Where(x => qualities.Contains(x.QualityLevel));
       }
 
-      var items = queryItems.ToArray();
+      var items = itemQuery.ToArray();
+      var historyItems = historyQuery.ToArray();
       Debug.WriteLine(items.Length);
+      Debug.WriteLine(historyItems.Length);
 
       if (apiVersion == ApiVersion.One)
       {
@@ -80,10 +87,17 @@ namespace albiondata_api_dotNet.Controllers
         {
           item.QualityLevel = 0;
         }
+        foreach (var historyItem in historyItems)
+        {
+          historyItem.QualityLevel = 0;
+        }
       }
 
+      var historyGroupLists = historyItems.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.Location })
+        .ToDictionary(x => CreateKey(x.Key.ItemTypeId, x.Key.Location, x.Key.QualityLevel), y => y.ToArray());
+
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.LocationId });
-      var foundItemLocationGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var itemFoundGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var responses = new List<MarketResponse>();
       foreach (var group in groups)
       {
@@ -126,7 +140,7 @@ namespace albiondata_api_dotNet.Controllers
           }
         }
 
-        foundItemLocationGroups.Add(CreateKey(group.Key.ItemTypeId, group.Key.LocationId));
+        itemFoundGroups.Add(CreateKey(group.Key.ItemTypeId, group.Key.LocationId, group.Key.QualityLevel));
         responses.Add(new MarketResponse
         {
           ItemTypeId = group.Key.ItemTypeId,
@@ -155,25 +169,64 @@ namespace albiondata_api_dotNet.Controllers
           Location.BlackMarket
         }.Select(x => (ushort)x);
       }
+      if (!qualities.Any())
+      {
+        if (apiVersion == ApiVersion.One)
+        {
+          qualities = new byte[] { 0 };
+        }
+        else
+        {
+          qualities = new byte[] { 1, 2, 3, 4, 5 };
+        }
+      }
       foreach (var itemId in itemIds)
       {
         foreach (var locationId in locations)
         {
-          var key = CreateKey(itemId, locationId);
-          if (!foundItemLocationGroups.Contains(key))
+          foreach (var quality in qualities)
           {
-            foundItemLocationGroups.Add(CreateKey(itemId, locationId));
-            // Don't look up historical prices here because it results in too many calls and too much time
-            responses.Add(new MarketResponse
+            var key = CreateKey(itemId, locationId, quality);
+            if (!itemFoundGroups.Contains(key))
             {
-              ItemTypeId = itemId,
-              City = Locations.GetName(locationId),
-              QualityLevel = 0,
-              SellPriceMin = 0,
-              SellPriceMinDate = DateTime.MinValue,
-              SellPriceMax = 0,
-              SellPriceMaxDate = DateTime.MinValue,
-            });
+              itemFoundGroups.Add(key);
+              // Check if we have historical values for this item
+              if (historyGroupLists.TryGetValue(key, out var groupList))
+              {
+                var itemCount = (ulong)groupList.Sum(x => (long)x.ItemAmount);
+                var silverAmount = (ulong)groupList.Sum(x => (long)x.SilverAmount);
+                ulong averagePrice = 0;
+                if (itemCount > 0)
+                {
+                  averagePrice = silverAmount / itemCount;
+                }
+                // Lower resolution to an average of seconds to prevent an overflow when averaging
+                var date = new DateTime((long)(groupList.Average(x => x.Timestamp.Ticks / TimeSpan.TicksPerSecond) * TimeSpan.TicksPerSecond));
+                responses.Add(new MarketResponse
+                {
+                  ItemTypeId = itemId,
+                  City = Locations.GetName(locationId),
+                  QualityLevel = quality,
+                  SellPriceMin = averagePrice,
+                  SellPriceMinDate = date,
+                  SellPriceMax = averagePrice,
+                  SellPriceMaxDate = date,
+                });
+              }
+              else
+              {
+                responses.Add(new MarketResponse
+                {
+                  ItemTypeId = itemId,
+                  City = Locations.GetName(locationId),
+                  QualityLevel = quality,
+                  SellPriceMin = 0,
+                  SellPriceMinDate = DateTime.MinValue,
+                  SellPriceMax = 0,
+                  SellPriceMaxDate = DateTime.MinValue,
+                });
+              }
+            }
           }
         }
       }
@@ -181,9 +234,9 @@ namespace albiondata_api_dotNet.Controllers
       return responses.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
     }
 
-    private static string CreateKey(string itemId, ushort locationId)
+    private static string CreateKey(string itemId, ushort locationId, byte quality)
     {
-      return $"{itemId}~~{locationId}";
+      return $"{itemId}~~{locationId}~~{quality}";
     }
 
     private class UpdatedAggregate
