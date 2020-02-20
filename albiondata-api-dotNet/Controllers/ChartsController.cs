@@ -176,7 +176,7 @@ namespace albiondata_api_dotNet.Controllers
       {
         aggregation = TimeAggregation.Hourly;
       }
-      else if (scale == 6)
+      else if (scale == 6 || scale == 24)
       {
         aggregation = TimeAggregation.QuarterDay;
       }
@@ -193,7 +193,7 @@ namespace albiondata_api_dotNet.Controllers
         itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
       }
 
-      var items = Enumerable.Empty<MarketHistoryDB>();
+      var items = Array.Empty<MarketHistoryDB>();
       var takeCount = count > 0 && locations.Count() == 1;
       if (takeCount)
       {
@@ -210,11 +210,14 @@ namespace albiondata_api_dotNet.Controllers
               SilverAmount = (ulong)x.Sum(x => (long)x.SilverAmount),
               Timestamp = x.Key.Timestamp
             })
-            .Take((int)count);
+            .Take((int)count)
+            .ToArray();
         }
         else
         {
-          items = itemQuery.OrderByDescending(x => x.Timestamp).Take((int)count);
+          items = itemQuery.OrderByDescending(x => x.Timestamp)
+            .Take((int)count)
+            .ToArray();
         }
       }
       else
@@ -228,6 +231,22 @@ namespace albiondata_api_dotNet.Controllers
         {
           item.QualityLevel = 0;
         }
+      }
+
+      if (scale == 24)
+      {
+        // Group results by day
+        items = items.GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel, x.Timestamp.Date })
+          .Select(x => new MarketHistoryDB()
+          {
+            ItemAmount = (ulong)x.Sum(x => (long)x.ItemAmount),
+            ItemTypeId = x.Key.ItemTypeId,
+            Location = x.Key.Location,
+            QualityLevel = x.Key.QualityLevel,
+            SilverAmount = (ulong)x.Sum(x => (long)x.SilverAmount),
+            Timestamp = x.Key.Date
+          })
+          .ToArray();
       }
 
       return items;
