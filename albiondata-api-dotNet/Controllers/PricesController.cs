@@ -1,10 +1,10 @@
-﻿using AlbionData.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using AlbionData.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace albiondata_api_dotNet.Controllers
 {
@@ -94,8 +94,8 @@ AND m.aggregation = 6")
         }
       }
 
-      var historyGroupLists = historyItems.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.Location })
-        .ToDictionary(x => CreateKey(x.Key.ItemTypeId, x.Key.Location, x.Key.QualityLevel), y => y.ToArray());
+      var historyGroups = historyItems.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.Location });
+      var historyGroupLists = historyGroups.ToDictionary(x => CreateKey(x.Key.ItemTypeId, x.Key.Location, x.Key.QualityLevel), y => y.ToArray());
 
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.LocationId });
       var itemFoundGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -178,7 +178,19 @@ AND m.aggregation = 6")
         }
         else
         {
-          qualities = new byte[] { 1, 2, 3, 4, 5 };
+          var foundQualities = groups.Select(x => x.Key.QualityLevel).Union(historyGroups.Select(x => x.Key.QualityLevel)).Distinct();
+          if (foundQualities.Any(x => x != 1))
+          {
+            // If we have found any quality that is not normal assume that they want data pre-filled for all qualities
+            // This may need to be rolled back
+            qualities = new byte[] { 1, 2, 3, 4, 5 };
+          }
+          else
+          {
+            // Only default to normal quality because they may be searching on an item that only has normal quality
+            // If they need other qualities filled in they should supply all the qualities in their search parameters
+            qualities = new byte[] { 1 };
+          }
         }
       }
       foreach (var itemId in itemIds)
