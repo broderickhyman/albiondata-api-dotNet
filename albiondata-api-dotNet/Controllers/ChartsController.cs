@@ -236,7 +236,8 @@ namespace albiondata_api_dotNet.Controllers
       if (scale == 24)
       {
         // Group results by day
-        items = items.GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel, x.Timestamp.Date })
+        // Adjust timestamp back 1 minute since the 00:00:00 timestamp should be included as end of day, not beginning
+        items = items.GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel, x.Timestamp.AddMinutes(-1).Date })
           .Select(x => new MarketHistoryDB()
           {
             ItemAmount = (ulong)x.Sum(x => (long)x.ItemAmount),
