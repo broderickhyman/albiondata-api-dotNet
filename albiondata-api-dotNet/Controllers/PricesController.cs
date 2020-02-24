@@ -58,13 +58,43 @@ namespace albiondata_api_dotNet.Controllers
       // Contains converts to SQL IN clause
       var itemQuery = context.MarketOrders.AsNoTracking()
         .Where(x => itemIds.Contains(x.ItemTypeId) && x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
-      var historyQuery = context.MarketHistories.FromSqlRaw(@"SELECT
-m.*
-FROM market_history m
-LEFT JOIN market_history m2 ON m.item_id = m2.item_id AND m.id <> m2.id AND m.location = m2.location AND m.quality = m2.quality AND m2.timestamp > m.timestamp
-WHERE m2.timestamp IS null
-AND m.aggregation = 6")
-        .AsNoTracking().Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-7));
+
+      // Get the query for the max timestamp for each unique item type, location and quality
+      // Limit specifically to the 6 hour aggregation so that it more accurately reflects the normal price, when the single hour may vary too much
+      var historyMaxQuery = context.MarketHistories.AsNoTracking()
+        .Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28) && x.AggregationType == TimeAggregation.QuarterDay)
+        .GroupBy(x => new
+        {
+          x.ItemTypeId,
+          x.Location,
+          x.QualityLevel
+        })
+        .Select(g => new
+        {
+          g.Key.ItemTypeId,
+          g.Key.Location,
+          g.Key.QualityLevel,
+          Timestamp = g.Max(x => x.Timestamp),
+        });
+
+      // Join to the max query in order to get the rest of the data only for the max timestamps
+      var historyQuery = context.MarketHistories.AsNoTracking()
+        .Join(historyMaxQuery,
+        h1 => new
+        {
+          h1.ItemTypeId,
+          h1.Location,
+          h1.QualityLevel,
+          h1.Timestamp,
+        },
+        h2 => new
+        {
+          h2.ItemTypeId,
+          h2.Location,
+          h2.QualityLevel,
+          h2.Timestamp,
+        },
+        (h1, _) => h1);
 
       if (locations.Any())
       {
