@@ -22,6 +22,7 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("api/v1/stats/[controller]/{itemList}")]
+    [ApiExplorerSettings(GroupName = "v1")]
     public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
       Utilities.SetElasticTransactionName("GET Prices v1");

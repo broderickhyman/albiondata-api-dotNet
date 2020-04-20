@@ -1,9 +1,9 @@
-﻿using AlbionData.Models;
-using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AlbionData.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace albiondata_api_dotNet.Controllers
 {
@@ -17,6 +17,7 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("api/v1/stats/[controller]/{itemList}")]
+    [ApiExplorerSettings(GroupName = "v1")]
     public ViewResult Index([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
     {
       Utilities.SetElasticTransactionName("GET View v1");

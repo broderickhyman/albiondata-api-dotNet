@@ -20,6 +20,7 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("api/v1/stats/[controller]/{itemId}")]
+    [ApiExplorerSettings(GroupName = "v1")]
     public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
     {
       Utilities.SetElasticTransactionName("GET Charts Stats v1");
@@ -37,7 +38,7 @@ namespace albiondata_api_dotNet.Controllers
       return Ok(ConvertToListResponsev2(GetByItemId(context, itemId, locationList, qualityList, version, date, scale)));
     }
 
-    [HttpGet("api/v2/stats/history/{itemId}")]
+    [HttpGet("api/v2/stats/History/{itemId}")]
     [ApiExplorerSettings(GroupName = "v2")]
     public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
       [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
