@@ -1,10 +1,10 @@
-﻿using System;
+﻿using AlbionData.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using AlbionData.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace albiondata_api_dotNet.Controllers
 {
@@ -155,7 +155,10 @@ namespace albiondata_api_dotNet.Controllers
               var key = $"{auctionType}:{aggregateType}";
               var current = dict[key];
               var u = order.UpdatedAt;
-              var updatedGroup = new DateTime(u.Year, u.Month, u.Day, u.Hour, u.Minute, 0);
+              // Make groups based upon every 5 minutes (This was originally 1 minute for months)
+              // This is a workaround to the issue where people scan the market page by page and view "bad" orders
+              // https://github.com/broderickhyman/albiondata-client/issues/12
+              var updatedGroup = new DateTime(u.Year, u.Month, u.Day, u.Hour, u.Minute - (u.Minute % 5), 0);
               if (updatedGroup > current.UpdatedAt)
               {
                 current.UpdatedAt = updatedGroup;
