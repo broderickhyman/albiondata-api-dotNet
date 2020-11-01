@@ -1,7 +1,5 @@
-﻿using System;
-using AlbionData.Models;
+﻿using AlbionData.Models;
 using AspNetCoreRateLimit;
-using Elastic.Apm.NetCoreAll;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -10,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
+using System;
 
 namespace albiondata_api_dotNet
 {
@@ -75,7 +74,6 @@ namespace albiondata_api_dotNet
         {
           ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
-        app.UseAllElasticApm(Configuration);
       }
       app.UseSwagger(x => x.RouteTemplate = "api/{documentName}/swagger.json");
 

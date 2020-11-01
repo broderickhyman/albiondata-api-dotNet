@@ -1,10 +1,10 @@
-﻿using System;
+﻿using AlbionData.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using AlbionData.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace albiondata_api_dotNet.Controllers
 {
@@ -23,7 +23,6 @@ namespace albiondata_api_dotNet.Controllers
     [ApiExplorerSettings(GroupName = "v1")]
     public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
     {
-      Utilities.SetElasticTransactionName("GET Charts Stats v1");
       const ApiVersion version = ApiVersion.One;
       return Ok(ConvertToListResponse(GetByItemId(context, itemId, locationList, null, version, date, 6)));
     }
@@ -33,7 +32,6 @@ namespace albiondata_api_dotNet.Controllers
     public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
       [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
-      Utilities.SetElasticTransactionName("GET Charts Stats v2");
       const ApiVersion version = ApiVersion.Two;
       return Ok(ConvertToListResponsev2(GetByItemId(context, itemId, locationList, qualityList, version, date, scale)));
     }
@@ -43,7 +41,6 @@ namespace albiondata_api_dotNet.Controllers
     public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
       [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
-      Utilities.SetElasticTransactionName("GET Charts History v2");
       return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, qualityList, ApiVersion.Two, date, scale)));
     }
 
@@ -165,12 +162,6 @@ namespace albiondata_api_dotNet.Controllers
       }
       var locations = Utilities.ParseLocationList(locationList);
       var qualities = Utilities.ParseQualityList(qualityList);
-
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.DateSearch, date.Value.ToString("s"));
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIds, itemId);
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIdCount, "1");
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Locations, string.Join(',', locations));
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Qualities, string.Join(',', qualities));
 
       var aggregation = default(TimeAggregation);
       if (scale == 1)

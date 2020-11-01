@@ -23,17 +23,15 @@ namespace albiondata_api_dotNet.Controllers
 
     [HttpGet("api/v1/stats/[controller]/{itemList}")]
     [ApiExplorerSettings(GroupName = "v1")]
-    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList)
+    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList)
     {
-      Utilities.SetElasticTransactionName("GET Prices v1");
       return Ok(GetMarketByItemId(context, itemList, locationList, null, ApiVersion.One));
     }
 
     [HttpGet("api/v2/stats/[controller]/{itemList}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute]string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
+    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
     {
-      Utilities.SetElasticTransactionName("GET Prices v2");
       return Ok(GetMarketByItemId(context, itemList, locationList, qualityList, ApiVersion.Two));
     }
 
@@ -47,10 +45,6 @@ namespace albiondata_api_dotNet.Controllers
       var locations = Utilities.ParseLocationList(locationList);
       var qualities = Utilities.ParseQualityList(qualityList);
 
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIds, string.Join(',', itemIds));
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.ItemIdCount, itemIds.Length.ToString());
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Locations, string.Join(',', locations));
-      Utilities.SetElasticTransactionLabels(Utilities.ElasticLabel.Qualities, string.Join(',', qualities));
       if (itemIds.Length == 0)
       {
         return Enumerable.Empty<MarketResponse>();

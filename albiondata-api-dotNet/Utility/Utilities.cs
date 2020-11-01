@@ -8,58 +8,6 @@ namespace albiondata_api_dotNet
 {
   public static class Utilities
   {
-    public static void SetElasticTransactionName(string name)
-    {
-      if (Elastic.Apm.Agent.Tracer.CurrentTransaction != null)
-      {
-        Elastic.Apm.Agent.Tracer.CurrentTransaction.Name = name;
-      }
-    }
-
-    public static void SetElasticTransactionLabels(ElasticLabel elasticLabel, string value)
-    {
-      if (Elastic.Apm.Agent.Tracer.CurrentTransaction != null)
-      {
-        var key = "";
-        switch (elasticLabel)
-        {
-          case ElasticLabel.DateSearch:
-            key = "date-search";
-            break;
-          case ElasticLabel.ItemIdCount:
-            key = "item-id-count";
-            break;
-          case ElasticLabel.ItemIds:
-            key = "item-ids";
-            break;
-          case ElasticLabel.Locations:
-            key = "locations";
-            break;
-          case ElasticLabel.Qualities:
-            key = "qualities";
-            break;
-          case ElasticLabel.RequestCount:
-            key = "request-count";
-            break;
-        }
-        if (string.IsNullOrEmpty(key) || Elastic.Apm.Agent.Tracer.CurrentTransaction.Labels.ContainsKey(key))
-        {
-          return;
-        }
-        Elastic.Apm.Agent.Tracer.CurrentTransaction.Labels[key] = value;
-      }
-    }
-
-    public enum ElasticLabel
-    {
-      DateSearch,
-      ItemIdCount,
-      ItemIds,
-      Locations,
-      Qualities,
-      RequestCount
-    }
-
     public static IEnumerable<ushort> ParseLocationList(string locationString)
     {
       return locationString.Split(",", StringSplitOptions.RemoveEmptyEntries).Select(location =>
