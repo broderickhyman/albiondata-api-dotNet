@@ -19,29 +19,29 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("api/v1/stats/[controller]/{itemId}")]
+    [HttpGet("api/v1/stats/[controller]/{itemList}")]
     [ApiExplorerSettings(GroupName = "v1")]
-    public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
+    public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
     {
       const ApiVersion version = ApiVersion.One;
-      return Ok(ConvertToListResponse(GetByItemId(context, itemId, locationList, null, version, date, 6)));
+      return Ok(ConvertToListResponse(GetByItemId(context, itemList, locationList, null, version, date, 6)));
     }
 
-    [HttpGet("api/v2/stats/[controller]/{itemId}")]
+    [HttpGet("api/v2/stats/[controller]/{itemList}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
+    public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
       [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
       const ApiVersion version = ApiVersion.Two;
-      return Ok(ConvertToListResponsev2(GetByItemId(context, itemId, locationList, qualityList, version, date, scale)));
+      return Ok(ConvertToListResponsev2(GetByItemId(context, itemList, locationList, qualityList, version, date, scale)));
     }
 
-    [HttpGet("api/v2/stats/History/{itemId}")]
+    [HttpGet("api/v2/stats/History/{itemList}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemId, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
+    public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
       [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
-      return Ok(ConvertToResponse(GetByItemId(context, itemId, locationList, qualityList, ApiVersion.Two, date, scale)));
+      return Ok(ConvertToResponse(GetByItemId(context, itemList, locationList, qualityList, ApiVersion.Two, date, scale)));
     }
 
     private IEnumerable<MarketStatChartResponse> ConvertToListResponse(IEnumerable<MarketHistoryDB> items)
@@ -150,9 +150,10 @@ namespace albiondata_api_dotNet.Controllers
       }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
     }
 
-    public static IEnumerable<MarketHistoryDB> GetByItemId(MainContext context, string itemId, string locationList, string qualityList, ApiVersion apiVersion, DateTime? date,
+    public static IEnumerable<MarketHistoryDB> GetByItemId(MainContext context, string itemList, string locationList, string qualityList, ApiVersion apiVersion, DateTime? date,
       byte scale, uint count = 0)
     {
+      if (string.IsNullOrWhiteSpace(itemList)) itemList = "";
       if (string.IsNullOrWhiteSpace(locationList)) { locationList = ""; }
       if (string.IsNullOrWhiteSpace(qualityList) || apiVersion == ApiVersion.One) qualityList = "";
 
@@ -160,8 +161,14 @@ namespace albiondata_api_dotNet.Controllers
       {
         date = DateTime.UtcNow.AddDays(-30);
       }
+      var itemIds = itemList.Split(",", StringSplitOptions.RemoveEmptyEntries);
       var locations = Utilities.ParseLocationList(locationList);
       var qualities = Utilities.ParseQualityList(qualityList);
+
+      if (itemIds.Length == 0)
+      {
+        return Enumerable.Empty<MarketHistoryDB>();
+      }
 
       var aggregation = default(TimeAggregation);
       if (scale == 1)
@@ -174,7 +181,7 @@ namespace albiondata_api_dotNet.Controllers
       }
 
       var itemQuery = context.MarketHistories.AsNoTracking()
-        .Where(x => x.ItemTypeId == itemId && x.Timestamp > date && x.AggregationType == aggregation);
+        .Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > date && x.AggregationType == aggregation);
 
       if (locations.Any())
       {
