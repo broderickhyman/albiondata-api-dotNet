@@ -22,15 +22,19 @@ namespace albiondata_api_dotNet.Controllers
     [HttpGet("api/v2/stats/[controller]")]
     [HttpGet("api/v2/stats/[controller].{format}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<GoldPrice>> Get([FromQuery] DateTime? date, [FromQuery(Name = "count")] int count = 0)
+    public ActionResult<IEnumerable<GoldPrice>> Get([FromQuery] DateTime? date, [FromQuery(Name = "end_date")] DateTime? endDate, [FromQuery(Name = "count")] int count = 0)
     {
       if (date == null)
       {
         date = DateTime.UtcNow.AddDays(-30);
       }
+      if (endDate == null)
+      {
+        endDate = date.Value.AddDays(30);
+      }
 
       var goldQuery = context.GoldPrices.AsNoTracking()
-        .Where(x => x.Timestamp > date);
+        .Where(x => x.Timestamp >= date && x.Timestamp <= endDate);
       if (count > 0)
       {
         goldQuery = goldQuery.OrderByDescending(x => x.Timestamp).Take(count);
