@@ -9,7 +9,7 @@ using System.Linq;
 namespace albiondata_api_dotNet.Controllers
 {
   [ApiController]
-  [Produces("application/json")]
+  [FormatFilter]
   public class PricesController : ControllerBase
   {
     private readonly MainContext context;
@@ -21,21 +21,21 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("api/v1/stats/[controller]/{itemList}")]
+    [HttpGet("api/v1/stats/[controller]/{itemList}.{format?}")]
     [ApiExplorerSettings(GroupName = "v1")]
-    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList)
+    public ActionResult<List<MarketResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList)
     {
       return Ok(GetMarketByItemId(context, itemList, locationList, null, ApiVersion.One));
     }
 
-    [HttpGet("api/v2/stats/[controller]/{itemList}")]
+    [HttpGet("api/v2/stats/[controller]/{itemList}.{format?}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
+    public ActionResult<List<MarketResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery(Name = "qualities")] string qualityList)
     {
       return Ok(GetMarketByItemId(context, itemList, locationList, qualityList, ApiVersion.Two));
     }
 
-    public static IEnumerable<MarketResponse> GetMarketByItemId(MainContext context, string itemList, string locationList, string qualityList, ApiVersion apiVersion)
+    public static List<MarketResponse> GetMarketByItemId(MainContext context, string itemList, string locationList, string qualityList, ApiVersion apiVersion)
     {
       if (string.IsNullOrWhiteSpace(itemList)) itemList = "";
       if (string.IsNullOrWhiteSpace(locationList)) locationList = "";
@@ -47,7 +47,7 @@ namespace albiondata_api_dotNet.Controllers
 
       if (itemIds.Length == 0)
       {
-        return Enumerable.Empty<MarketResponse>();
+        return new List<MarketResponse>();
       }
 
       // Contains converts to SQL IN clause
@@ -272,7 +272,7 @@ namespace albiondata_api_dotNet.Controllers
         }
       }
 
-      return responses.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel);
+      return responses.OrderBy(x => x.ItemTypeId).ThenBy(x => x.City).ThenBy(x => x.QualityLevel).ToList();
     }
 
     private static string CreateKey(string itemId, ushort locationId, byte quality)

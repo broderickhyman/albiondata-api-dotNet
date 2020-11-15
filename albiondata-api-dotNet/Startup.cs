@@ -54,7 +54,9 @@ namespace albiondata_api_dotNet
       services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
       services.AddDbContext<MainContext>(opt => opt.UseMySql(Program.SqlConnectionUrl));
-      services.AddControllersWithViews().AddNewtonsoftJson();
+      services.AddControllersWithViews()
+        .AddNewtonsoftJson()
+        .AddXmlSerializerFormatters();
       services.AddCors();
 
       // Don't show v1 anymore as it shouldn't be used and all v1 has a v2

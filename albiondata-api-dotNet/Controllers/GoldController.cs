@@ -9,7 +9,7 @@ using System.Linq;
 namespace albiondata_api_dotNet.Controllers
 {
   [ApiController]
-  [Produces("application/json")]
+  [FormatFilter]
   public class GoldController : ControllerBase
   {
     private readonly MainContext context;
@@ -20,6 +20,7 @@ namespace albiondata_api_dotNet.Controllers
     }
 
     [HttpGet("api/v2/stats/[controller]")]
+    [HttpGet("api/v2/stats/[controller].{format}")]
     [ApiExplorerSettings(GroupName = "v2")]
     public ActionResult<IEnumerable<GoldPrice>> Get([FromQuery] DateTime? date, [FromQuery(Name = "count")] int count = 0)
     {

@@ -9,7 +9,7 @@ using System.Linq;
 namespace albiondata_api_dotNet.Controllers
 {
   [ApiController]
-  [Produces("application/json")]
+  [FormatFilter]
   public class ChartsController : ControllerBase
   {
     private readonly MainContext context;
@@ -19,32 +19,32 @@ namespace albiondata_api_dotNet.Controllers
       this.context = context;
     }
 
-    [HttpGet("api/v1/stats/[controller]/{itemList}")]
+    [HttpGet("api/v1/stats/[controller]/{itemList}.{format?}")]
     [ApiExplorerSettings(GroupName = "v1")]
-    public ActionResult<IEnumerable<MarketStatChartResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
+    public ActionResult<List<MarketStatChartResponse>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date)
     {
       const ApiVersion version = ApiVersion.One;
       return Ok(ConvertToListResponse(GetByItemId(context, itemList, locationList, null, version, date, 6)));
     }
 
-    [HttpGet("api/v2/stats/[controller]/{itemList}")]
+    [HttpGet("api/v2/stats/[controller]/{itemList}.{format?}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketStatChartResponsev2>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
+    public ActionResult<List<MarketStatChartResponsev2>> Get([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
       [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
       const ApiVersion version = ApiVersion.Two;
       return Ok(ConvertToListResponsev2(GetByItemId(context, itemList, locationList, qualityList, version, date, scale)));
     }
 
-    [HttpGet("api/v2/stats/History/{itemList}")]
+    [HttpGet("api/v2/stats/History/{itemList}.{format?}")]
     [ApiExplorerSettings(GroupName = "v2")]
-    public ActionResult<IEnumerable<MarketHistoriesResponse>> GetHistory([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
+    public ActionResult<List<MarketHistoriesResponse>> GetHistory([FromRoute] string itemList, [FromQuery(Name = "locations")] string locationList, [FromQuery] DateTime? date,
       [FromQuery(Name = "qualities")] string qualityList, [FromQuery(Name = "time-scale")] byte scale = 6)
     {
       return Ok(ConvertToResponse(GetByItemId(context, itemList, locationList, qualityList, ApiVersion.Two, date, scale)));
     }
 
-    private IEnumerable<MarketStatChartResponse> ConvertToListResponse(IEnumerable<MarketHistoryDB> items)
+    private List<MarketStatChartResponse> ConvertToListResponse(IEnumerable<MarketHistoryDB> items)
     {
       return items.OrderBy(x => x.Timestamp).GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel }).Select(mainGroup =>
       {
@@ -80,10 +80,10 @@ namespace albiondata_api_dotNet.Controllers
           QualityLevel = mainGroup.Key.QualityLevel,
           Data = data
         };
-      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
+      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel).ToList();
     }
 
-    private IEnumerable<MarketStatChartResponse> ConvertToListResponsev2(IEnumerable<MarketHistoryDB> items)
+    private List<MarketStatChartResponsev2> ConvertToListResponsev2(IEnumerable<MarketHistoryDB> items)
     {
       return items.OrderBy(x => x.Timestamp).GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel }).Select(mainGroup =>
       {
@@ -115,10 +115,10 @@ namespace albiondata_api_dotNet.Controllers
           QualityLevel = mainGroup.Key.QualityLevel,
           Data = data
         };
-      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
+      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel).ToList();
     }
 
-    private IEnumerable<MarketHistoriesResponse> ConvertToResponse(IEnumerable<MarketHistoryDB> items)
+    private List<MarketHistoriesResponse> ConvertToResponse(IEnumerable<MarketHistoryDB> items)
     {
       return items.OrderBy(x => x.Timestamp).GroupBy(x => new { x.Location, x.ItemTypeId, x.QualityLevel }).Select(mainGroup =>
       {
@@ -147,7 +147,7 @@ namespace albiondata_api_dotNet.Controllers
           QualityLevel = mainGroup.Key.QualityLevel,
           Data = data
         };
-      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel);
+      }).OrderBy(x => x.Location).ThenBy(x => x.ItemTypeId).ThenBy(x => x.QualityLevel).ToList();
     }
 
     public static IEnumerable<MarketHistoryDB> GetByItemId(MainContext context, string itemList, string locationList, string qualityList, ApiVersion apiVersion, DateTime? date,
