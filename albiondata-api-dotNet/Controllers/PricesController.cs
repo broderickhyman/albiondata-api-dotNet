@@ -99,12 +99,16 @@ namespace albiondata_api_dotNet.Controllers
       if (qualities.Any())
       {
         // Hack to fix the Mariadb query optimization
-        var tempList = qualities.ToList();
-        tempList.Add(0);
-        qualities = tempList;
-
-        itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
-        historyQuery = historyQuery.Where(x => qualities.Contains(x.QualityLevel));
+        if (qualities.Count() == 1)
+        {
+          itemQuery = itemQuery.Where(x => x.QualityLevel == qualities.Single());
+          historyQuery = historyQuery.Where(x => x.QualityLevel == qualities.Single());
+        }
+        else
+        {
+          itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
+          historyQuery = historyQuery.Where(x => qualities.Contains(x.QualityLevel));
+        }
       }
 
       var items = itemQuery.ToArray();
