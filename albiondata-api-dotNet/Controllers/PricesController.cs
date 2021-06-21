@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace albiondata_api_dotNet.Controllers
 {
@@ -54,17 +55,30 @@ namespace albiondata_api_dotNet.Controllers
       var itemQuery = context.MarketOrders.AsNoTracking()
         .Where(x => itemIds.Contains(x.ItemTypeId) && x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
 
+      // WARNING: Build up the LINQ Expression to make sure to put the where clause on both the inner and outer query for sql index optimiztion reasons
+      Expression<Func<MarketHistoryDB, bool>> predicate = x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28) && x.AggregationType == TimeAggregation.QuarterDay;
+
+      if (locations.Any())
+      {
+        itemQuery = itemQuery.Where(x => locations.Contains(x.LocationId));
+        predicate = predicate.And(x => locations.Contains(x.Location));
+      }
+      if (qualities.Any())
+      {
+        itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
+        predicate = predicate.And(x => qualities.Contains(x.QualityLevel));
+      }
+
       // Get the query for the max timestamp for each unique item type, location and quality
       // Limit specifically to the 6 hour aggregation so that it more accurately reflects the normal price, when the single hour may vary too much
-      var historyMaxQuery = context.MarketHistories.AsNoTracking()
-        .Where(x => x.AggregationType == TimeAggregation.QuarterDay)
+      // Group By so that we can get the max
+      var historyMaxQuery = context.MarketHistories.AsNoTracking().Where(predicate)
         .GroupBy(x => new
         {
           x.ItemTypeId,
           x.Location,
           x.QualityLevel
-        })
-        .Select(g => new
+        }).Select(g => new
         {
           g.Key.ItemTypeId,
           g.Key.Location,
@@ -73,9 +87,7 @@ namespace albiondata_api_dotNet.Controllers
         });
 
       // Join to the max query in order to get the rest of the data only for the max timestamps
-      // WARNING: Make sure to put most of the where clause on the outer query for sql index optimiztion reasons
-      var historyQuery = context.MarketHistories.AsNoTracking()
-        .Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28) && x.AggregationType == TimeAggregation.QuarterDay)
+      var historyQuery = context.MarketHistories.AsNoTracking().Where(predicate)
         .Join(historyMaxQuery,
         h1 => new
         {
@@ -92,17 +104,6 @@ namespace albiondata_api_dotNet.Controllers
           h2.Timestamp,
         },
         (h1, _) => h1);
-
-      if (locations.Any())
-      {
-        itemQuery = itemQuery.Where(x => locations.Contains(x.LocationId));
-        historyQuery = historyQuery.Where(x => locations.Contains(x.Location));
-      }
-      if (qualities.Any())
-      {
-        itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
-        historyQuery = historyQuery.Where(x => qualities.Contains(x.QualityLevel));
-      }
 
       var items = itemQuery.ToArray();
       var historyItems = historyQuery.ToArray();
