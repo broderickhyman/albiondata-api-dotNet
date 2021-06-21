@@ -205,12 +205,7 @@ namespace albiondata_api_dotNet.Controllers
       }
       if (qualities.Any())
       {
-        // Hack to fix the Mariadb query optimization
-        var tempList = qualities.ToList();
-        tempList.Add(0);
-        // Don't update the qualities var or it will cause extra rows
-
-        itemQuery = itemQuery.Where(x => tempList.Contains(x.QualityLevel));
+        itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
       }
 
       var items = Array.Empty<MarketHistoryDB>();

@@ -57,7 +57,7 @@ namespace albiondata_api_dotNet.Controllers
       // Get the query for the max timestamp for each unique item type, location and quality
       // Limit specifically to the 6 hour aggregation so that it more accurately reflects the normal price, when the single hour may vary too much
       var historyMaxQuery = context.MarketHistories.AsNoTracking()
-        .Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28) && x.AggregationType == TimeAggregation.QuarterDay)
+        .Where(x => x.AggregationType == TimeAggregation.QuarterDay)
         .GroupBy(x => new
         {
           x.ItemTypeId,
@@ -73,7 +73,9 @@ namespace albiondata_api_dotNet.Controllers
         });
 
       // Join to the max query in order to get the rest of the data only for the max timestamps
+      // WARNING: Make sure to put most of the where clause on the outer query for sql index optimiztion reasons
       var historyQuery = context.MarketHistories.AsNoTracking()
+        .Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28) && x.AggregationType == TimeAggregation.QuarterDay)
         .Join(historyMaxQuery,
         h1 => new
         {
@@ -98,13 +100,8 @@ namespace albiondata_api_dotNet.Controllers
       }
       if (qualities.Any())
       {
-        // Hack to fix the Mariadb query optimization
-        var tempList = qualities.ToList();
-        tempList.Add(0);
-        // Don't update the qualities var or it will cause extra rows
-
-        itemQuery = itemQuery.Where(x => tempList.Contains(x.QualityLevel));
-        historyQuery = historyQuery.Where(x => tempList.Contains(x.QualityLevel));
+        itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
+        historyQuery = historyQuery.Where(x => qualities.Contains(x.QualityLevel));
       }
 
       var items = itemQuery.ToArray();
