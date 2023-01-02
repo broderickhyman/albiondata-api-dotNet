@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace albiondata_api_dotNet.Controllers
 {
@@ -54,63 +55,60 @@ namespace albiondata_api_dotNet.Controllers
       var itemQuery = context.MarketOrders.AsNoTracking()
         .Where(x => itemIds.Contains(x.ItemTypeId) && x.UpdatedAt > DateTime.UtcNow.AddHours(-1 * Program.MaxAge) && !x.DeletedAt.HasValue);
 
-      // Get the query for the max timestamp for each unique item type, location and quality
-      // Limit specifically to the 6 hour aggregation so that it more accurately reflects the normal price, when the single hour may vary too much
-      var historyMaxQuery = context.MarketHistories.AsNoTracking()
-        .Where(x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28) && x.AggregationType == TimeAggregation.QuarterDay)
-        .GroupBy(x => new
-        {
-          x.ItemTypeId,
-          x.Location,
-          x.QualityLevel
-        })
-        .Select(g => new
-        {
-          g.Key.ItemTypeId,
-          g.Key.Location,
-          g.Key.QualityLevel,
-          Timestamp = g.Max(x => x.Timestamp),
-        });
-
-      // Join to the max query in order to get the rest of the data only for the max timestamps
-      var historyQuery = context.MarketHistories.AsNoTracking()
-        .Join(historyMaxQuery,
-        h1 => new
-        {
-          h1.ItemTypeId,
-          h1.Location,
-          h1.QualityLevel,
-          h1.Timestamp,
-        },
-        h2 => new
-        {
-          h2.ItemTypeId,
-          h2.Location,
-          h2.QualityLevel,
-          h2.Timestamp,
-        },
-        (h1, _) => h1);
+      // WARNING: Build up the LINQ Expression to make sure to put the where clause on both the inner and outer query for sql index optimiztion reasons
+      Expression<Func<MarketHistoryDB, bool>> predicate = x => itemIds.Contains(x.ItemTypeId) && x.Timestamp > DateTime.UtcNow.AddDays(-28) && x.AggregationType == TimeAggregation.QuarterDay;
 
       if (locations.Any())
       {
         itemQuery = itemQuery.Where(x => locations.Contains(x.LocationId));
-        historyQuery = historyQuery.Where(x => locations.Contains(x.Location));
+        predicate = predicate.And(x => locations.Contains(x.Location));
       }
       if (qualities.Any())
       {
-        // Hack to fix the Mariadb query optimization
-        var tempList = qualities.ToList();
-        tempList.Add(0);
-        qualities = tempList;
-
         itemQuery = itemQuery.Where(x => qualities.Contains(x.QualityLevel));
-        historyQuery = historyQuery.Where(x => qualities.Contains(x.QualityLevel));
+        predicate = predicate.And(x => qualities.Contains(x.QualityLevel));
       }
 
+      // Get the query for the max timestamp for each unique item type, location and quality
+      // Limit specifically to the 6 hour aggregation so that it more accurately reflects the normal price, when the single hour may vary too much
+      // Group By so that we can get the max
+      //var historyMaxQuery = context.MarketHistories.AsNoTracking().Where(predicate)
+      //  .GroupBy(x => new
+      //  {
+      //    x.ItemTypeId,
+      //    x.Location,
+      //    x.QualityLevel
+      //  }).Select(g => new
+      //  {
+      //    g.Key.ItemTypeId,
+      //    g.Key.Location,
+      //    g.Key.QualityLevel,
+      //    Timestamp = g.Max(x => x.Timestamp),
+      //  });
+
+      // Join to the max query in order to get the rest of the data only for the max timestamps
+      //var historyQuery = context.MarketHistories.AsNoTracking().Where(predicate)
+      //  .Join(historyMaxQuery,
+      //  h1 => new
+      //  {
+      //    h1.ItemTypeId,
+      //    h1.Location,
+      //    h1.QualityLevel,
+      //    h1.Timestamp,
+      //  },
+      //  h2 => new
+      //  {
+      //    h2.ItemTypeId,
+      //    h2.Location,
+      //    h2.QualityLevel,
+      //    h2.Timestamp,
+      //  },
+      //  (h1, _) => h1);
+
       var items = itemQuery.ToArray();
-      var historyItems = historyQuery.ToArray();
+      //var historyItems = historyQuery.ToArray();
       Debug.WriteLine(items.Length);
-      Debug.WriteLine(historyItems.Length);
+      //Debug.WriteLine(historyItems.Length);
 
       if (apiVersion == ApiVersion.One)
       {
@@ -118,14 +116,14 @@ namespace albiondata_api_dotNet.Controllers
         {
           item.QualityLevel = 0;
         }
-        foreach (var historyItem in historyItems)
-        {
-          historyItem.QualityLevel = 0;
-        }
+        //foreach (var historyItem in historyItems)
+        //{
+        //  historyItem.QualityLevel = 0;
+        //}
       }
 
-      var historyGroups = historyItems.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.Location });
-      var historyGroupLists = historyGroups.ToDictionary(x => CreateKey(x.Key.ItemTypeId, x.Key.Location, x.Key.QualityLevel), y => y.ToArray());
+      //var historyGroups = historyItems.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.Location });
+      //var historyGroupLists = historyGroups.ToDictionary(x => CreateKey(x.Key.ItemTypeId, x.Key.Location, x.Key.QualityLevel), y => y.ToArray());
 
       var groups = items.GroupBy(x => new { x.ItemTypeId, x.QualityLevel, x.LocationId });
       var itemFoundGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -211,7 +209,8 @@ namespace albiondata_api_dotNet.Controllers
         }
         else
         {
-          var foundQualities = groups.Select(x => x.Key.QualityLevel).Union(historyGroups.Select(x => x.Key.QualityLevel)).Distinct();
+          //var foundQualities = groups.Select(x => x.Key.QualityLevel).Union(historyGroups.Select(x => x.Key.QualityLevel)).Distinct();
+          var foundQualities = groups.Select(x => x.Key.QualityLevel).Distinct();
           if (foundQualities.Any(x => x != 1))
           {
             // If we have found any quality that is not normal assume that they want data pre-filled for all qualities
@@ -236,42 +235,42 @@ namespace albiondata_api_dotNet.Controllers
             if (!itemFoundGroups.Contains(key))
             {
               itemFoundGroups.Add(key);
-              // Check if we have historical values for this item
-              if (historyGroupLists.TryGetValue(key, out var groupList))
+              //// Check if we have historical values for this item
+              //if (historyGroupLists.TryGetValue(key, out var groupList))
+              //{
+              //  var itemCount = (ulong)groupList.Sum(x => (long)x.ItemAmount);
+              //  var silverAmount = (ulong)groupList.Sum(x => (long)x.SilverAmount);
+              //  ulong averagePrice = 0;
+              //  if (itemCount > 0)
+              //  {
+              //    averagePrice = silverAmount / itemCount;
+              //  }
+              //  // Lower resolution to an average of seconds to prevent an overflow when averaging
+              //  var date = new DateTime((long)(groupList.Average(x => x.Timestamp.Ticks / TimeSpan.TicksPerSecond) * TimeSpan.TicksPerSecond));
+              //  responses.Add(new MarketResponse
+              //  {
+              //    ItemTypeId = itemId,
+              //    City = Locations.GetName(locationId),
+              //    QualityLevel = quality,
+              //    SellPriceMin = averagePrice,
+              //    SellPriceMinDate = date,
+              //    SellPriceMax = averagePrice,
+              //    SellPriceMaxDate = date,
+              //  });
+              //}
+              //else
+              //{
+              responses.Add(new MarketResponse
               {
-                var itemCount = (ulong)groupList.Sum(x => (long)x.ItemAmount);
-                var silverAmount = (ulong)groupList.Sum(x => (long)x.SilverAmount);
-                ulong averagePrice = 0;
-                if (itemCount > 0)
-                {
-                  averagePrice = silverAmount / itemCount;
-                }
-                // Lower resolution to an average of seconds to prevent an overflow when averaging
-                var date = new DateTime((long)(groupList.Average(x => x.Timestamp.Ticks / TimeSpan.TicksPerSecond) * TimeSpan.TicksPerSecond));
-                responses.Add(new MarketResponse
-                {
-                  ItemTypeId = itemId,
-                  City = Locations.GetName(locationId),
-                  QualityLevel = quality,
-                  SellPriceMin = averagePrice,
-                  SellPriceMinDate = date,
-                  SellPriceMax = averagePrice,
-                  SellPriceMaxDate = date,
-                });
-              }
-              else
-              {
-                responses.Add(new MarketResponse
-                {
-                  ItemTypeId = itemId,
-                  City = Locations.GetName(locationId),
-                  QualityLevel = quality,
-                  SellPriceMin = 0,
-                  SellPriceMinDate = DateTime.MinValue,
-                  SellPriceMax = 0,
-                  SellPriceMaxDate = DateTime.MinValue,
-                });
-              }
+                ItemTypeId = itemId,
+                City = Locations.GetName(locationId),
+                QualityLevel = quality,
+                SellPriceMin = 0,
+                SellPriceMinDate = DateTime.MinValue,
+                SellPriceMax = 0,
+                SellPriceMaxDate = DateTime.MinValue,
+              });
+              //}
             }
           }
         }
